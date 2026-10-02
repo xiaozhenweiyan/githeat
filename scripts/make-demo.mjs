@@ -23,19 +23,19 @@ const NOW = Date.parse('2026-04-01T00:00:00Z');
 const SHAPE = [
   ['src/analyze.mjs', 34, 3, 4],
   ['src/cli.mjs', 31, 4, 3],
-  ['src/svg.mjs', 22, 6, 3],
-  ['src/terminal.mjs', 19, 9, 3],
-  ['src/git.mjs', 17, 5, 3],
-  ['src/treemap.mjs', 14, 12, 2],
-  ['src/report.mjs', 12, 11, 2],
-  ['src/colors.mjs', 9, 24, 2],
-  ['test/cli.test.mjs', 11, 4, 2],
-  ['test/unit.test.mjs', 13, 4, 2],
-  ['test/helpers.mjs', 6, 18, 2],
-  ['bin/githeat.mjs', 4, 40, 1],
-  ['scripts/make-demo.mjs', 3, 26, 1],
-  ['docs/demo.svg', 3, 26, 1],
-  ['.github/workflows/ci.yml', 2, 33, 1],
+  ['src/svg.mjs', 27, 6, 3],
+  ['src/terminal.mjs', 23, 9, 3],
+  ['src/git.mjs', 20, 5, 3],
+  ['src/treemap.mjs', 17, 12, 2],
+  ['src/report.mjs', 16, 11, 2],
+  ['src/colors.mjs', 13, 24, 2],
+  ['test/cli.test.mjs', 15, 4, 2],
+  ['test/unit.test.mjs', 14, 4, 2],
+  ['test/helpers.mjs', 11, 18, 2],
+  ['bin/githeat.mjs', 8, 40, 1],
+  ['scripts/make-demo.mjs', 7, 26, 1],
+  ['docs/demo.svg', 6, 26, 1],
+  ['.github/workflows/ci.yml', 5, 33, 1],
 ];
 
 function build() {
@@ -43,14 +43,17 @@ function build() {
   let sha = 0;
   const base = Date.parse('2025-10-01T00:00:00Z');
   for (const [path, times, ageDays, authors] of SHAPE) {
+    const activity = 0.4 + times / 34; // hotter files are picked up in more sweeps
     for (let i = 0; i < times; i += 1) {
       const picked = i % authors;
       const daysAgo = ageDays + (times - i) * 2.4;
       const date = new Date(NOW - daysAgo * 86400000);
       const files = [path];
-      // a few commits sweep several files, like real refactors do
+      // hot files get swept into other commits too, and a few commits are
+      // wider refactors — this is what gives a real repository its churn spread
       if (i % 7 === 0) files.push(SHAPE[(i * 3) % SHAPE.length][0]);
       if (i % 11 === 0) files.push('README.md');
+      if ((sha * 7919) % 100 < activity * 34) files.push(SHAPE[(sha * 5) % SHAPE.length][0]);
       commits.push({
         sha: `demo${String(sha++).padStart(4, '0')}`,
         date: (date < new Date(base) ? new Date(base) : date).toISOString(),

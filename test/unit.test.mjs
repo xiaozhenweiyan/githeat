@@ -203,6 +203,27 @@ test('squarify handles empty, zero-value and single-item input', () => {
   assert.ok(Math.abs(one[0].w * one[0].h - 40) < 0.001);
 });
 
+test('squarify keeps tiles close to square instead of degenerating into bars', () => {
+  // Regression guard: an inverted aspect-ratio term in the row-worst function
+  // turned the map into one full-width bar per file while still "filling" the
+  // rectangle, so a containment test alone could not catch it.
+  const vals = [34, 30, 29, 28, 26, 25, 23, 22, 20, 19, 17, 16, 15, 13, 12];
+  const box = { x: 0, y: 0, w: 1168, h: 584 };
+  const tiles = squarify(vals.map((v, i) => ({ label: `f${i}`, value: v })), box, { gap: 0 });
+  const worst = Math.max(...tiles.map((t) => Math.max(t.w, t.h) / Math.min(t.w, t.h)));
+  assert.ok(worst < 2.5, `worst aspect ratio ${worst.toFixed(2)} is too elongated`);
+
+  const squares = squarify(
+    [1, 1, 1, 1].map((v, i) => ({ label: `q${i}`, value: v })),
+    { x: 0, y: 0, w: 100, h: 100 },
+    { gap: 0 },
+  );
+  for (const t of squares) {
+    assert.ok(Math.abs(t.w - t.h) < 0.001, 'four equal values should tile into squares');
+    assert.ok(Math.abs(t.w - 50) < 0.001);
+  }
+});
+
 test('topTiles folds the long tail into directory buckets', () => {
   const files = Array.from({ length: 30 }, (_, i) => ({
     path: `src/${i < 5 ? 'hot' : 'tail'}/file${i}.js`,

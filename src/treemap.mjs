@@ -55,16 +55,27 @@ const sum = (row) => row.reduce((s, e) => s + e.area, 0);
 const max = (row) => row.reduce((m, e) => Math.max(m, e.area), 0);
 const min = (row) => row.reduce((m, e) => Math.min(m, e.area), 0);
 
-/** Worst aspect ratio produced by the row inside `box`. Lower is better. */
+/**
+ * Worst aspect ratio produced by the row inside `box`. Lower is better.
+ *
+ * `s` is the row's total area and `side` the box's shorter edge. A row is laid
+ * along that edge, so a tile of area `a` ends up `s/side` by `a*side/s`; the
+ * ratio of the two is what we minimise. Getting these two terms the wrong way
+ * round silently degrades the map into one full-width bar per file, which is
+ * why `test/unit.test.mjs` asserts on real aspect ratios.
+ */
 function worst(row, box) {
   if (row.length === 0) return Infinity;
   const side = Math.min(box.w, box.h);
   if (side <= 0) return Infinity;
   const s = sum(row);
   if (s <= 0) return Infinity;
-  const side2 = side * side;
-  const s2 = s * s;
-  return Math.max((side2 * max(row)) / s2, s2 / (side2 * min(row)));
+  const thickness = s / side; // the row is laid along the box's short edge
+  const ratios = row.map((e) => {
+    const length = e.area / thickness; // the tile's other dimension
+    return Math.max(thickness / length, length / thickness);
+  });
+  return Math.max(...ratios);
 }
 
 /** Lay the row along the shorter side; return the remaining rectangle. */
