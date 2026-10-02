@@ -8,6 +8,79 @@
 
 ---
 
+## 2026-02-14 · 第三轮：发布准备工作（D老师这个称呼从此节开始）
+
+### 1. 一个我判断失误的地方
+
+我先前把 `xiaozhenweiyan` 当成"我随手写的占位用户名"，因为我是从 `git config --global user.name`
+（值是 `xiaozhen_weiyan`）推出来的，觉得本地昵称未必等于 GitHub 用户名。
+
+你反问了一句"有没有一种可能我就叫这个"，我去查了 GitHub API：
+
+```
+GET https://api.github.com/users/xiaozhenweiyan  ->  200
+  login: xiaozhenweiyan
+  name:  xiaozhen_weiyan     ← 和你的 git 配置逐字一致
+  id:    217602791
+  public_repos: 13, followers: 0
+GET https://api.github.com/repos/xiaozhenweiyan/githeat -> 404
+```
+
+结论：**账号真实存在且就是你本人**；`githeat` 仓库还没建。
+我的"占位符"结论错了一半 —— 仓库判断是对的，把真人账号叫占位符是武断的。
+已把脚本里的警告改掉，`-User` 默认值直接设成 `xiaozhenweiyan`。
+
+### 2. 环境侦察（决定了最后那一下为什么必须你本人按）
+
+| 检查项 | 结果 | 影响 |
+| --- | --- | --- |
+| `gh` CLI | 未安装 | 我无法用命令行替你建仓库 |
+| Windows 凭据管理器里的 github 项 | 无 | 没有可复用的登录态 |
+| `git config --global credential.helper` | 空 | 推送时会弹窗，凭据只有你能输入 |
+
+所以我能做到"推到门口"，最后一步必须你在浏览器点一下 —— 这其实是最好的分工，
+你不需要把 token 给我，我也不需要承担它的风险。
+
+### 3. PowerShell 中文脚本的两个坑（都踩了，都修了）
+
+写 `push-to-github.ps1` 时连续翻车两次，记下来免得以后再犯：
+
+1. **PS 5.1 按 GBK 读没有 BOM 的 `.ps1`** —— 我的中文注释被读成乱码，
+   连里面的中文引号都变了，直接报 `The string is missing the terminator`。
+   修法：给文件加 UTF-8 BOM（用 Node 加，别用 PowerShell 自己加，否则循环套娃）。
+2. **`$ErrorActionPreference = "Stop"` + 原生命令写 stderr = 脚本中断** ——
+   `git remote get-url origin` 在没有 origin 时会往 stderr 输出 `error: No such remote`，
+   PS 5.1 会把它当终止性错误直接掐断脚本（即使 `2>$null` 也拦不住）。
+   修法：先 `git remote` 列名字，再决定要不要取值，绕开 stderr。
+
+### 4. 这一轮新增
+
+- `push-to-github.ps1`：现在可以**干跑**（`-DryRun`）。它会先用公开 API 探测仓库是否存在，
+  404 就明确告诉你"先去建仓库"并退出码 3，建好了再跑一次才真正推送。
+  已用本地裸仓库端到端验证过推送链路。
+- `docs/launch.md`：发布与推广手册。包含仓库 Description/Topics 的填法、
+  V2EX/掘金/HN/Reddit/X 五套可直接复制的文案、一周动作清单，
+  以及一份"会毁掉项目"的反例清单。
+  里面明确要求：**文案必须主动写明 AI 参与、以及还没在超大仓库上实测** ——
+  这两件事被人指出来的伤害远大于自己先说。
+- `origin` 已经配好指向 `https://github.com/xiaozhenweiyan/githeat.git`，
+  所以推送只剩"建仓库 + 跑脚本"。
+
+### 5. 现在只剩你要做的两步
+
+```
+1) 打开  https://github.com/new?name=githeat&visibility=public
+   仓库名填 githeat，公开，不要勾 Add README / .gitignore / license
+
+2) 回到本文件夹执行：
+   .\push-to-github.ps1
+   （会弹 GitHub 登录窗口，登录一下就行，凭据不用给我）
+```
+
+推完之后按 `docs/launch.md` 第 0 节把 Description 和 Topics 填上，然后按第 4 节的时间表发出去。
+
+---
+
 ## 2026-02-14 · 第二轮：把首屏图渲染出来看，抓到一个真算法 bug
 
 ### 最重要的发现：treemap 的宽高比公式写反了

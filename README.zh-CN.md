@@ -138,11 +138,12 @@ git 自身开销，JS 分析只占很小一部分。完整测量方法见
 ## 开发
 
 ```bash
-npm test          # 37 个测试，包含真实临时仓库的端到端测试
+npm test          # 38 个测试，包含真实临时仓库的端到端测试
 npm run demo      # 重新生成 docs/（用合成历史，图不会随提交抖动）
 ```
 
-见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [CHANGELOG.md](CHANGELOG.md)。
+见 [CONTRIBUTING.md](CONTRIBUTING.md)、[CHANGELOG.md](CHANGELOG.md)
+与[性能测量记录](docs/benchmark.md)。
 
 MIT 协议。欢迎提 issue 和 PR —— 尤其是「它把我的 `foo.bar` 排到了 99 分，
 但这文件根本不配」这种报告，对这类工具来说是最有价值的 bug 报告。

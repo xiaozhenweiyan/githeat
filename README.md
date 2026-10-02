@@ -154,11 +154,12 @@ For very large monorepos, scope the window: `githeat --since 12.months`.
 ## Development
 
 ```bash
-npm test          # 37 tests, including a real throwaway repository
+npm test          # 38 tests, including a real throwaway repository
 npm run demo      # regenerate docs/ (synthetic history, stable image)
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and the
+[benchmark notes](docs/benchmark.md).
 
 MIT licensed. Issues and pull requests welcome — especially "this ranked my
 `foo.bar` at 99 and it does not deserve it" reports, which are the most useful
