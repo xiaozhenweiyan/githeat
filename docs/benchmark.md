@@ -9,7 +9,6 @@ rendering is excluded.
 | tiny fixture (`test/helpers.mjs`) | 12 | 3 | 0.69 s | 0.01 s |
 | slugify | 78 | 9 | 0.69 s | 0.02 s |
 | chalk | 359 | 33 | 0.74 s | 0.26 s |
-| react | 15 k | – | see below | – |
 
 Reading the numbers:
 
@@ -31,6 +30,8 @@ git clone --filter=blob:none https://github.com/chalk/chalk /tmp/chalk
 time node bin/githeat.mjs heat /tmp/chalk --json > /dev/null
 ```
 
-Numbers for `react` (~15 000 commits) are recorded when the clone finishes; the
-tool has no early-exit path that would behave differently at that size, so the
-expectation is a linear increase in the git call only.
+No measurements above a 400-commit repository are claimed here: the parser is a
+single pass over `git log` output and holds only `(commit, path)` strings, so the
+cost is expected to grow linearly with history size, but that expectation has not
+been verified on a large monorepo yet. If you run it on one, a PR with the numbers
+is very welcome — that is exactly the kind of report this project is built on.

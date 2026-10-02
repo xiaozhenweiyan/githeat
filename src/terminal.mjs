@@ -2,6 +2,7 @@
  * Terminal renderer: an ANSI "heat table" plus a directory-tree rollup.
  * Pure text, 24-bit colour when the terminal supports it, plain otherwise.
  */
+import { DEFAULT_MIN_COMMITS } from './analyze.mjs';
 
 const ANSI = {
   reset: '\u001b[0m',
@@ -112,7 +113,10 @@ export function renderTable(report, opts = {}) {
   }
 
   if (files.length === 0) {
-    lines.push('No hotspots found. Try --min-commits 1 or a wider --since window.');
+    lines.push(
+      `nothing to rank yet: no file has been touched ${DEFAULT_MIN_COMMITS}+ times\n` +
+        'try --min-commits 1, a wider --since window, or --ext "" to score every file',
+    );
     return `${lines.join('\n')}\n`;
   }
 

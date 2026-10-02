@@ -296,6 +296,11 @@ function commandCheck(argv) {
   );
   lines.push(`top 10    ${report.summary.top10Share}% of all churn`);
   lines.push('');
+  if (!hottest) {
+    lines.push(`WARN  no file reaches --min-commits ${num(flags['min-commits'], DEFAULT_MIN_COMMITS)} yet: not enough history`);
+    lines.push('      to rank anything. Widen the window or lower --min-commits in CI.');
+    lines.push('');
+  }
   if (failures.length > 0) {
     for (const f of failures) lines.push(`FAIL  ${f}`);
     lines.push('');

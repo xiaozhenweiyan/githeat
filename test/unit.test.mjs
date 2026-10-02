@@ -295,5 +295,6 @@ test('renderTable and renderTree stay readable without colour', () => {
 
 test('renderTable handles an empty ranking with advice instead of a crash', () => {
   const out = renderTable(analyze([]), { color: false });
-  assert.ok(out.includes('No hotspots found'));
+  assert.ok(out.includes('nothing to rank yet'));
+  assert.ok(out.includes('--min-commits 1'));
 });
