@@ -373,3 +373,29 @@ git push -u origin main
 - 行级 churn（`--numstat`）做可选模式，给愿意等的人更精确的分数。
 - `--format html` 里加"热点趋势"折线（需要按时间分桶，代码已经有一半基础）。
 - 发布到 npm（`npm publish` 需要你的账号，我不碰）。
+
+---
+
+## 2026-02-14 · 第六轮（收尾）：CI 修绿 + 诚实说明
+
+你睡觉前我做的最后一轮，三件事：
+
+1. **CI 从"6/9 挂"修到"10/10 全绿"。** 根因：测试脚本写成 `node --test "test/**/*.test.mjs"`,
+   PowerShell 会展开 glob 所以本地/Windows 能过，**bash 不展开**，Node 收到字面量直接
+   "Could not find ..."。改用不带参数的 `node --test`，让 Node 自己递归发现。
+   顺手把 actions/checkout、setup-node 升到 v5（v4 跑在已弃用的 Node 20 runner 上）。
+   现在徽章端点是 HTTP 200，README 上的绿标是真的。
+
+2. **补上"它不擅长什么"。** 这是防差评最有效的一段，中英文都写了：
+   改动压力不等于代码质量；重命名会清零历史；没过滤掉的生成代码会污染排名；
+   churn 是提交次数不是行数。
+
+3. **大仓库实测没做成，就照实写没做成。** express / vue / django / rust 四个克隆
+   全部在这台机器的网络上失败（github.com 单次响应 12.9 秒），django 那份克隆残缺到
+   连 HEAD 都没有，我把它删了而不是拿残缺数据凑数。`docs/benchmark.md` 里明确写了
+   "超过 ~400 提交的仓库尚未实测"。
+   为了让别人能补这个洞，加了 `scripts/bench.mjs`：`node scripts/bench.mjs <仓库> <标签>`
+   输出一行可直接贴进文档的 markdown 表格行。
+
+**已实测的真实数据（中位数，三次）**：chalk 380 提交 0.72s（git 自身 0.13s）、
+slugify 78 提交 0.69s。启动开销 ~0.18s 是下限。
