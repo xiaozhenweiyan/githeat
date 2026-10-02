@@ -1,5 +1,9 @@
 # githeat
 
+[![ci](https://github.com/xiaozhenweiyan/githeat/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaozhenweiyan/githeat/actions/workflows/ci.yml)
+![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
+![node](https://img.shields.io/badge/node-%3E%3D18-informational)
+
 **Find the files that are quietly costing you the most — then watch the heat move.**
 
 `githeat` reads your git history, ranks every source file by how much editing
@@ -163,7 +167,23 @@ npm run demo      # regenerate docs/ (synthetic history, stable image)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and the
-[benchmark notes](docs/benchmark.md).
+[benchmark notes](docs/benchmark.md). CI runs the suite on Node 18/20/22 across
+Linux, macOS and Windows, plus an install-from-tarball smoke test.
+
+### What this tool is not good at
+
+Worth saying out loud, so you do not have to find out the hard way:
+
+- **It measures edit pressure, not quality.** A file with a high score might be
+  the best-tested file in the repo, or it might be a dumping ground. The score
+  tells you where to *look*, never what is wrong.
+- **Renames are counted as delete + add.** `--no-renames` is deliberate (it keeps
+  the parse fast and unambiguous), so a big rename resets a file's history.
+- **Generated-but-committed code that is not filtered yet will pollute the
+  ranking.** If you see a suspicious winner, add its extension to `--ext` or open
+  an issue with the path — noise patterns are the most useful bug reports.
+- **Churn is commit count, not lines.** A one-character fix costs as much as a
+  full rewrite of the file in this model.
 
 MIT licensed. Issues and pull requests welcome — especially "this ranked my
 `foo.bar` at 99 and it does not deserve it" reports, which are the most useful

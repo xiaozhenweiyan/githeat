@@ -1,5 +1,8 @@
 # githeat · 中文说明
 
+[![ci](https://github.com/xiaozhenweiyan/githeat/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaozhenweiyan/githeat/actions/workflows/ci.yml)
+![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
+
 **找出那些正在悄悄吃掉你时间的文件，然后看着红色退下去。**
 
 `githeat` 读取你的 git 历史，给每个源码文件算一个「热点分」，在终端打印一张热力表，
@@ -123,6 +126,18 @@ console.log(report.files[0]); // { path, score, commits, churn, authors, last, .
 ```
 
 库不会联网，也不会在你没要求时写任何东西进仓库。
+
+## 它不擅长什么
+
+先说清楚，省得你自己踩了才知道：
+
+- **它衡量的是"改动压力"，不是代码质量。** 高分文件可能是全仓库测试最全的，
+  也可能是个垃圾堆。分数只告诉你**去哪儿看**，从不告诉你哪里错了。
+- **重命名会被算成"删除 + 新增"**（`--no-renames` 是刻意选的，为了解析快且无歧义），
+  所以一次大重命名会把文件的历史清零。
+- **被提交进仓库的生成代码如果没被过滤掉，会污染排名。** 看到可疑的榜首文件，
+  用 `--ext` 排除它，或者提个 issue 把路径告诉我——"噪声模式漏了"是这类工具最有价值的反馈。
+- **churn 是提交次数，不是行数。** 在这个模型里，改一个字符和重写整个文件一样贵。
 
 ## 性能
 
