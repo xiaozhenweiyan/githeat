@@ -8,6 +8,55 @@
 
 ---
 
+## 2026-02-14 · 第五轮：仓库上线了
+
+**结果：https://github.com/xiaozhenweiyan/githeat 已经公开，代码全部推上去了。**
+
+### 这一轮踩的坑，按顺序
+
+1. **fine-grained token 建仓库被拒（403）**
+   GitHub 的响应头写得很清楚：`x-accepted-github-permissions: administration=write; repository_creation=write`，
+   正文是 `Resource not accessible by personal access token`。
+   也就是说那个 token 缺"建仓库"权限。我们在设置页里死活找不到权限入口
+   （很可能是那个 token 并非从标准的细粒度页面生成，点进去没有权限编辑界面）。
+   **结论：这种情况别恋战，直接换 classic token。** classic 只要勾一个 `repo`，
+   就同时包含建仓库和推代码，不用在几十个权限项里翻。
+
+2. **`git -c http.extraHeader` 推不上去**
+   我原以为可以用一次性 header 传 token，避免凭据落盘。
+   实测失败：Git Credential Manager 无视了这个 header，转头去要交互式用户名，
+   报 `could not read Username for 'https://github.com'`，退出码 128。
+   **这条只在"不需要认证的远端"（比如本地裸仓库）上看起来是成功的** ——
+   我之前的验证就是这么骗过自己的，值得记一笔教训：
+   *本地裸仓库测不出认证问题，因为它根本不认证。*
+   最后的做法：**临时**把 remote URL 换成 `https://user:token@github.com/...`，
+   推完立刻 `git remote set-url` 还原成干净地址，并核验 `.git/config` 里没有 token 残留。
+
+3. **README 里写了跑不通的命令**
+   `npm i -g githeat` 和 `npx githeat` 在包还没发布时必然 404。
+   首页教人做一件会失败的事，比首页丑更伤。已全部改成
+   `git clone` + `node bin/githeat.mjs`，并且本地实跑验证过示例命令。
+   `docs/launch.md` 里给 HN/X 的文案同样清掉了 `npx`。
+
+### 上线后的核验（都做了，不是"应该没问题"）
+
+| 检查 | 结果 |
+| --- | --- |
+| 本地 main 与 origin/main 的 sha | 一致 ✅ |
+| README 首屏那张图（`docs/demo.svg`） | HTTP 200，`image/svg+xml`，9 KB ✅ |
+| Description / Topics | 已设置，10 个 topics ✅ |
+| 默认分支 / 可见性 | main / 公开 ✅ |
+| `.git/config` 有无 token | 无 ✅ |
+
+### 给自己留的两条待办
+
+- **token 权限过宽**：那个 classic token 实际带了 `admin:enterprise`、`admin:org`、`delete_repo`、
+  `delete:packages`、`admin:ssh_signing_key` 等一大堆我用不到的权限。我只需要 `repo`。
+  虽然能用，但泄漏面太大，应当重新生成一个只勾 `repo` 的。
+- **还没发 npm**：发了之后 README 就能回到 `npx githeat` 那种最顺的用法。
+
+---
+
 ## 2026-02-14 · 第四轮：token 全自动建仓库 + 推送
 
 你问"你不能直接帮我建仓库吗"，然后选了让我全做完（B 方案）。这轮就是把这件事变成
