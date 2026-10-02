@@ -115,7 +115,7 @@ applied to author dates in UTC so a report means the same thing on every machine
 ## In CI
 
 ```yaml
-- run: npx githeat check --max-score 90 --max-critical 0
+- run: node bin/githeat.mjs check --max-score 90 --max-critical 0
 ```
 
 `check` prints a short verdict and exits `1` when a threshold breaks, `0`

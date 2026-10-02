@@ -58,7 +58,10 @@ cli  git  hotspots  churn  code-health  treemap  heatmap  developer-tools  refac
 ```
 受"修改频率比代码复杂度更能预测缺陷"这个老结论启发，做了个零依赖的 CLI：
 
-  npx githeat
+  git clone https://github.com/xiaozhenweiyan/githeat
+  node bin/githeat.mjs heat /path/to/repo
+
+（还没发 npm，所以先 clone；包已经准备好，随时能发）
 
 它会读你的 git 历史，给每个源码文件算一个热点分（churn + 修改次数 + 近期加权），
 终端直接出彩色热力表，还能导出可嵌 README 的 SVG 热力图和单文件 HTML 报告。
@@ -150,8 +153,6 @@ Your git history already knows which files are rotting.
 
 githeat scores every source file by churn + change count + recency, prints a
 heat table, and renders a treemap you can drop in a README.
-
-npx githeat
 
 Zero deps. Nothing leaves your machine.
 ```

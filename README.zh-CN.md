@@ -10,7 +10,7 @@
 ![githeat 热点热力图](docs/demo.svg)
 
 ```console
-$ npx githeat
+$ node bin/githeat.mjs /path/to/your/repo
 ```
 
 ```console
@@ -103,7 +103,7 @@ score = 100 × (0.68 × churn + 0.32 × changes) × 近期系数
 ## 在 CI 里
 
 ```yaml
-- run: npx githeat check --max-score 90 --max-critical 0
+- run: node bin/githeat.mjs check --max-score 90 --max-critical 0
 ```
 
 `check` 打印简短结论：超阈值退出码 `1`，正常 `0`，用法错误 `2`。
