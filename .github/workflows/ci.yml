@@ -19,11 +19,11 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node: ['18', '20', '22']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0 # githeat needs real history in the smoke test below
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
 
@@ -41,10 +41,10 @@ jobs:
     name: install from the packed tarball
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
       - name: Pack and install globally

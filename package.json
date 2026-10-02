@@ -31,7 +31,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.mjs\"",
+    "test": "node --test",
     "demo": "node bin/githeat.mjs heat . --format svg --out docs/demo.svg --all"
   },
   "repository": {
