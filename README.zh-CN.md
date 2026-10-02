@@ -42,11 +42,15 @@ bands: critical 9 high 12 medium 12 low 0
 
 ## 安装
 
+还没发 npm —— 先克隆，或者直接用仓库里的入口跑：
+
 ```bash
-npx githeat               # 直接用，不安装
-npm i -g githeat          # 或者装到全局
+git clone https://github.com/xiaozhenweiyan/githeat
+cd githeat
+node bin/githeat.mjs heat /path/to/your/repo
 ```
 
+`npm i -g` 等第一次 npm 发布；`bin` 入口已经配好了。
 只需要 Node 18+ 和 PATH 里的 `git`。依赖列表到此为止。
 
 ## 用法

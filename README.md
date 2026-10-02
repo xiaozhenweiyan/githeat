@@ -11,7 +11,7 @@ Zero dependencies. No config. No account. Nothing leaves your machine.
 ![githeat hotspot map](docs/demo.svg)
 
 ```console
-$ npx githeat
+$ node bin/githeat.mjs /path/to/your/repo
 ```
 
 ```console
@@ -48,12 +48,16 @@ deadlines. That is where your next bug is already sitting.
 
 ## Install
 
+Not on npm yet — clone it or run it straight from the repository:
+
 ```bash
-npx githeat               # run once, no install
-npm i -g githeat          # or install it
+git clone https://github.com/xiaozhenweiyan/githeat
+cd githeat
+node bin/githeat.mjs heat /path/to/your/repo
 ```
 
-Requires Node 18+ and `git` on your PATH. That is the whole dependency list.
+`npm i -g` arrives with the first npm release; the `bin` entry is already wired.
+Requires Node 18+ and `git` on your PATH — that is the whole dependency list.
 
 ## Use
 
