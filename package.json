@@ -1,0 +1,42 @@
+{
+  "name": "githeat",
+  "version": "0.1.0",
+  "description": "Find git hotspots and render them as heatmaps. Zero dependencies.",
+  "keywords": [
+    "git",
+    "hotspot",
+    "churn",
+    "code-health",
+    "refactoring",
+    "treemap",
+    "heatmap",
+    "cli"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "githeat": "./bin/githeat.mjs"
+  },
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "demo": "node bin/githeat.mjs heat . --format svg --out docs/demo.svg --all"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiaozhenweiyan/githeat.git"
+  },
+  "author": "xiaozhenweiyan"
+}

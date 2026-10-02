@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (node ${{ matrix.node }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # githeat needs real history in the smoke test below
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Smoke test on this repository
+        run: |
+          node bin/githeat.mjs --version
+          node bin/githeat.mjs heat . --top 5
+          node bin/githeat.mjs heat . --format svg --out smoke.svg
+          node bin/githeat.mjs check --quiet
+
+  packaged:
+    name: install from the packed tarball
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Pack and install globally
+        run: |
+          npm pack
+          npm i -g ./githeat-*.tgz
+          githeat --version
+          githeat heat . --top 3
+          githeat check --quiet

@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="768" viewBox="0 0 1200 768" role="img" aria-label="githeat hotspot heatmap" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+<rect width="1200" height="768" fill="#0d1117"/>
+<text x="16" y="34" fill="#f0f6fc" font-size="24" font-weight="700" letter-spacing="-0.2">githeat</text>
+<text x="16" y="58" fill="#8b949e" font-size="13">200 commits · 13 files ranked · 230 churn · 4 authors · 6 months @ main</text>
+<text x="1184" y="34" fill="#f0f6fc" font-size="13" font-weight="600" text-anchor="end">githeat hotspot map</text>
+<text x="1184" y="58" fill="#8b949e" font-size="12" text-anchor="end">top 10 files = 92.2% of all churn</text>
+<g><title>src/analyze.mjs
+score 99.7 · 49 changes · churn 49 · 4 authors
+last change 2026-03-26</title>
+<rect x="17" y="79" width="1166" height="122.42" rx="3" fill="#d7273c" stroke="#761521" stroke-width="1"/>
+<text x="23" y="129.21" fill="#f4f8fb" font-size="12" font-weight="400" opacity="0.72">src</text>
+<text x="23" y="145.21" fill="#f4f8fb" font-size="13" font-weight="600" opacity="1">analyze.mjs</text>
+<text x="23" y="161.21" fill="#f4f8fb" font-size="12" font-weight="700" opacity="0.9">99.7</text>
+</g>
+<g><title>src/cli.mjs
+score 99.6 · 31 changes · churn 31 · 3 authors
+last change 2026-03-25</title>
+<rect x="17" y="203.42" width="1166" height="76.71" rx="3" fill="#d8283c" stroke="#771621" stroke-width="1"/>
+<text x="23" y="230.77" fill="#f4f8fb" font-size="12" font-weight="400" opacity="0.72">src</text>
+<text x="23" y="246.77" fill="#f4f8fb" font-size="13" font-weight="600" opacity="1">cli.mjs</text>
+<text x="23" y="262.77" fill="#f4f8fb" font-size="12" font-weight="700" opacity="0.9">99.6</text>
+</g>
+<g><title>src/svg.mjs
+score 90.1 · 22 changes · churn 22 · 3 authors
+last change 2026-03-23</title>
+<rect x="17" y="282.13" width="1166" height="53.86" rx="3" fill="#e7522a" stroke="#7f2d17" stroke-width="1"/>
+<text x="23" y="299.06" fill="#f4f8fb" font-size="10" font-weight="400" opacity="0.72">src</text>
+<text x="23" y="313.06" fill="#f4f8fb" font-size="11" font-weight="600" opacity="1">svg.mjs</text>
+<text x="23" y="327.06" fill="#f4f8fb" font-size="10" font-weight="700" opacity="0.9">90.1</text>
+</g>
+<g><title>src/terminal.mjs
+score 90.1 · 22 changes · churn 22 · 3 authors
+last change 2026-03-23</title>
+<rect x="17" y="337.99" width="1166" height="53.86" rx="3" fill="#e7522a" stroke="#7f2d17" stroke-width="1"/>
+<text x="23" y="354.92" fill="#f4f8fb" font-size="10" font-weight="400" opacity="0.72">src</text>
+<text x="23" y="368.92" fill="#f4f8fb" font-size="11" font-weight="600" opacity="1">terminal.mjs</text>
+<text x="23" y="382.92" fill="#f4f8fb" font-size="10" font-weight="700" opacity="0.9">90.1</text>
+</g>
+<g><title>src/report.mjs
+score 89.8 · 22 changes · churn 22 · 3 authors
+last change 2026-03-18</title>
+<rect x="17" y="393.85" width="1166" height="53.86" rx="3" fill="#e85329" stroke="#802e17" stroke-width="1"/>
+<text x="23" y="410.78" fill="#f4f8fb" font-size="10" font-weight="400" opacity="0.72">src</text>
+<text x="23" y="424.78" fill="#f4f8fb" font-size="11" font-weight="600" opacity="1">report.mjs</text>
+<text x="23" y="438.78" fill="#f4f8fb" font-size="10" font-weight="700" opacity="0.9">89.8</text>
+</g>
+<g><title>src/git.mjs
+score 83.1 · 17 changes · churn 17 · 3 authors
+last change 2026-03-24</title>
+<rect x="17" y="449.71" width="1166" height="41.17" rx="3" fill="#f2711d" stroke="#853e10" stroke-width="1"/>
+<text x="23" y="467.29" fill="#f4f8fb" font-size="11" font-weight="600" opacity="1">git.mjs</text>
+<text x="23" y="481.29" fill="#f4f8fb" font-size="10" font-weight="700" opacity="0.9">83.1</text>
+</g>
+<g><title>test/unit.test.mjs
+score 79.7 · 15 changes · churn 15 · 2 authors
+last change 2026-03-25</title>
+<rect x="17" y="492.88" width="1166" height="36.09" rx="3" fill="#f27e22" stroke="#854513" stroke-width="1"/>
+<text x="23" y="507.93" fill="#f4f8fb" font-size="11" font-weight="600" opacity="1">unit.test.mjs</text>
+<text x="23" y="521.92" fill="#f4f8fb" font-size="10" font-weight="700" opacity="0.9">79.7</text>
+</g>
+<g><title>src/treemap.mjs
+score 77.5 · 14 changes · churn 14 · 2 authors
+last change 2026-03-17</title>
+<rect x="17" y="530.97" width="1166" height="33.55" rx="3" fill="#f28725" stroke="#854a14" stroke-width="1"/>
+<text x="23" y="544.75" fill="#f4f8fb" font-size="11" font-weight="600" opacity="1">treemap.mjs</text>
+<text x="23" y="558.75" fill="#f4f8fb" font-size="10" font-weight="700" opacity="0.9">77.5</text>
+</g>
+<g><title>test/cli.test.mjs
+score 71.4 · 11 changes · churn 11 · 2 authors
+last change 2026-03-25</title>
+<rect x="17" y="566.51" width="1166" height="25.93" rx="3" fill="#f29f2d" stroke="#855719" stroke-width="1"/>
+<text x="23" y="576.48" fill="#0d1b26" font-size="11" font-weight="600" opacity="1">cli.test.mjs</text>
+</g>
+<g><title>src/colors.mjs
+score 65.5 · 9 changes · churn 9 · 2 authors
+last change 2026-03-05</title>
+<rect x="17" y="594.44" width="1166" height="20.85" rx="3" fill="#edb334" stroke="#82621d" stroke-width="1"/>
+</g>
+<g><title>scripts/make-demo.mjs
+score 63 · 8 changes · churn 8 · 2 authors
+last change 2026-03-19</title>
+<rect x="17" y="617.3" width="1166" height="18.31" rx="3" fill="#e2b635" stroke="#7c641d" stroke-width="1"/>
+</g>
+<g><title>test/helpers.mjs
+score 55.5 · 6 changes · churn 6 · 2 authors
+last change 2026-03-11</title>
+<rect x="17" y="637.61" width="1166" height="13.23" rx="3" fill="#c0c138" stroke="#6a6a1f" stroke-width="1"/>
+</g>
+<g><title>bin/githeat.mjs
+score 45.4 · 4 changes · churn 4 · 1 author
+last change 2026-02-17</title>
+<rect x="17" y="652.84" width="1166" height="8.16" rx="3" fill="#83c04e" stroke="#486a2b" stroke-width="1"/>
+</g>
+<rect x="16" y="704" width="332.31" height="10" fill="#ef6920"><title>critical: 9 files (69%)</title></rect>
+<text x="182.15" y="729" fill="#8b949e" font-size="10" text-anchor="middle">critical 69%</text>
+<rect x="348.31" y="704" width="147.69" height="10" fill="#bec238"><title>high: 4 files (31%)</title></rect>
+<text x="422.15" y="729" fill="#8b949e" font-size="10" text-anchor="middle">high 31%</text>
+<text x="16" y="696" fill="#c9d1d9" font-size="11" font-weight="600">risk distribution across 13 ranked files</text>
+<rect x="920" y="704" width="38.31" height="10" fill="#12324f"/>
+<rect x="957.71" y="704" width="38.31" height="10" fill="#1a708f"/>
+<rect x="995.43" y="704" width="38.31" height="10" fill="#22a784"/>
+<rect x="1033.14" y="704" width="38.31" height="10" fill="#a8c93a"/>
+<rect x="1070.86" y="704" width="38.31" height="10" fill="#f2b034"/>
+<rect x="1108.57" y="704" width="38.31" height="10" fill="#f2711d"/>
+<rect x="1146.29" y="704" width="38.31" height="10" fill="#d7263d"/>
+<text x="920" y="729" fill="#8b949e" font-size="10">0 low risk</text><text x="1184" y="729" fill="#8b949e" font-size="10" text-anchor="end">100 critical</text>
+<text x="920" y="696" fill="#c9d1d9" font-size="11" font-weight="600">hotspot score</text><text x="1184" y="696" fill="#6e7681" font-size="10" text-anchor="end">area = churn</text>
+</svg>
