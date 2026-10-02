@@ -8,6 +8,70 @@
 
 ---
 
+## 2026-02-14 · 第四轮：token 全自动建仓库 + 推送
+
+你问"你不能直接帮我建仓库吗"，然后选了让我全做完（B 方案）。这轮就是把这件事变成
+**你只需要设置一次环境变量、再跑一条命令**。
+
+### 1. 先说清楚我为什么一开始做不到
+
+建仓库需要一个身份凭据，而这台机器上当时没有任何一个：
+
+| 检查 | 结果 |
+| --- | --- |
+| `gh` CLI | 未安装 |
+| Windows 凭据管理器里的 github 项 | 无 |
+| `git config --global credential.helper` | 空 |
+| 无头浏览器代你点 | 试过，拉 GitHub 页面拿不到内容（DOM 和截图都空），修不好，不假装能 |
+
+所以不是不愿意，是**手里真的没有钥匙**。现在这把钥匙是你自己给的临时 token。
+
+### 2. token 的处理约定（这是这轮最重要的部分）
+
+新增 `scripts/create-and-push.ps1`，它对 token 的处理写死在代码里：
+
+- **只从 `$env:GH_TOKEN` 读**，不接受命令行参数（命令行会留在 PowerShell 历史里）
+- **不写进任何文件**，不打印，不回显，不放进 remote URL
+- 推送时用 `git -c http.extraHeader=...` **只作用于那一条命令**，推送完即失效
+  —— 已实测确认 `.git/config` 里不含 token
+- 脚本结束前 `Remove-Item Env:\GH_TOKEN` 清掉会话变量
+- 做完会提醒你去 Revoke 那个 token
+
+**已实测的三种状态**（不是"应该能行"）：
+
+| 场景 | 结果 |
+| --- | --- |
+| 没设 `GH_TOKEN` | 明确提示怎么设，退出码 **2** |
+| token 无效 | `[1/5]` 阶段 401 停下，退出码 **1**，不产生半个仓库 |
+| 推送链路 | 用本地裸仓库验证：带 header 推送成功、远端收到提交、config 无 token 残留 |
+
+### 3. 这轮又踩的坑（都是 PowerShell 的参数坑）
+
+1. 我给脚本加了个 `-ApiBase` 参数方便测试，结果替换工具把它自己也替换了，
+   变成 `[string]$ApiBase = "$ApiBase"`（自己赋给自己）。
+   **教训**：批量替换要保护"定义那一行"，我在替换函数里加了负向断言来跳过它。
+2. 用完的一次性修复工具 `scripts/fix-ps1.mjs` 已删除 —— 工具类脚本用完就扔，
+   不要留在仓库里当噪音。
+
+### 4. 现在你要做的（两条命令，token 只出现在第一条里）
+
+```powershell
+# 1) 粘贴你的 token 后回车（注意：这一步 token 会显示在你自己的终端上，这是正常的）
+$env:GH_TOKEN = "github_pat_xxxxxxxx"
+
+# 2) 建仓库 + 推代码 + 填 Description/Topics，一次做完
+cd "E:\爆火软件"
+.\scripts\create-and-push.ps1
+
+# 3) 立刻撤销 token（脚本也会提醒你）
+#    https://github.com/settings/personal-access-tokens
+```
+
+做完之后：仓库地址是 https://github.com/xiaozhenweiyan/githeat ，
+Description 和 10 个 Topics 我都会顺手填好，你直接进 `docs/launch.md` 第 2 节挑文案发帖就行。
+
+---
+
 ## 2026-02-14 · 第三轮：发布准备工作（D老师这个称呼从此节开始）
 
 ### 1. 一个我判断失误的地方

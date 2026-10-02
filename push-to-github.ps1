@@ -17,6 +17,7 @@ param(
   [string]$User = "xiaozhenweiyan",
   [string]$Repo = "githeat",
   [string]$Branch = "main",
+  [string]$ApiBase = "https://api.github.com",
   [switch]$DryRun
 )
 
@@ -30,7 +31,7 @@ Write-Host "目标仓库：$url" -ForegroundColor Cyan
 # 0) 远端仓库是否已经建好（只用公开 API 探测，不发任何凭据）
 $remoteExists = $false
 try {
-  $resp = Invoke-WebRequest -Uri "https://api.github.com/repos/$User/$Repo" -UseBasicParsing -TimeoutSec 10
+  $resp = Invoke-WebRequest -Uri "$ApiBase/repos/$User/$Repo" -UseBasicParsing -TimeoutSec 10
   $remoteExists = $true
   Write-Host "远端仓库已存在（HTTP $($resp.StatusCode)）" -ForegroundColor Green
 } catch {
