@@ -398,6 +398,22 @@ what has **not** been measured.
 
 For very large monorepos, scope the window: `githeat --since 12.months`.
 
+## Does it actually work?
+
+An obvious question, and one this project tries to answer with evidence rather
+than assertion: [`docs/evaluation.md`](docs/evaluation.md) checks the ranking
+against the repairs maintainers described in their own commit messages, using
+equally-recent files as a control group.
+
+The short version: on express (6 173 commits) the files fixed later were **1.6×
+more likely** to sit in the top 10 % of the ranking than equally-recent files that
+were not, with a 22.9 pp mean separation in percentile rank. On two smaller
+projects the sample was too small to conclude anything, and that is reported as
+"no usable evidence" rather than as a win.
+
+What the control group establishes is that this is not merely a recency detector —
+which is the main way a metric like this can be useless while looking useful.
+
 ## How it compares
 
 - `git log --stat` / `git-quick-stats` — great at *describing* history, no ranking,
@@ -420,7 +436,6 @@ Linux, macOS and Windows, plus an install-from-tarball smoke test.
 ### What this tool is not good at
 
 Worth saying out loud, so you do not have to find out the hard way:
-
 - **It measures edit pressure, not quality.** A file with a high score might be
   the best-tested file in the repo, or it might be a dumping ground. The score
   tells you where to *look*, never what is wrong.
