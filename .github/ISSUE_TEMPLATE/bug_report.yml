@@ -1,0 +1,56 @@
+name: Bug report
+description: Something is wrong — a wrong ranking, a crash, a broken render, bad output.
+title: ""
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most valuable bug reports for this tool are **ranking complaints**:
+        "it put `foo.bar` at 99 and it does not deserve it". That usually means a
+        noise pattern is missing, which is a one-line fix.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead? Paste the exact output.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: command
+    attributes:
+      label: The exact command
+      placeholder: "node bin/githeat.mjs heat . --top 20"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version and environment
+      description: "`node bin/githeat.mjs --version`, plus OS, Node version and git version."
+      placeholder: "0.1.0 · Windows 11 · Node 22.23.2 · git 2.55.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: |
+        Please try to make this repository-independent. `test/helpers.mjs` builds a
+        throwaway repository in a few lines and is the easiest way to show a ranking
+        problem.
+    validations:
+      required: false
+
+  - type: textarea
+    id: ranking
+    attributes:
+      label: If this is a ranking complaint
+      description: Which file, what score, and why it should not be there. A link to the file helps.
+    validations:
+      required: false
