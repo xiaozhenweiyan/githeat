@@ -54,3 +54,22 @@ change is and paste the output before/after.
 
 Run `npm test` before pushing. CI runs the suite on Node 18/20/22 across Linux,
 macOS and Windows, plus a check that the packed tarball installs and runs.
+
+## Tooling notes for Windows contributors
+
+Three traps this project has already fallen into, all PowerShell 5.1 specific:
+
+1. **Never use `node -e "..."` for anything longer than a couple of lines**, and
+   never with a regex inside it. PowerShell interpolates `$` inside double quotes,
+   which silently mangles a pattern like `/^\s+id:/gm` — the script then *passes*
+   while checking nothing. Write a file under `scripts/` instead.
+2. **A `.ps1` without a UTF-8 BOM is decoded as the system ANSI codepage** (GBK on
+   a Chinese Windows install), so CJK comments corrupt the parse and the script
+   dies with a confusing "string is missing the terminator". Either add a BOM or
+   keep the file ASCII.
+3. **Do not edit text files with `Get-Content` + `Set-Content`.** In PS 5.1 that
+   round-trip is not UTF-8 safe and silently replaces non-ASCII characters with
+   U+FFFD. Use the editor/agent file tools, or Node.
+
+Also: a `git commit -m` message containing quotes gets mangled by PowerShell. Write
+the message to a file and use `git commit -F`.

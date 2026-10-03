@@ -460,3 +460,87 @@ vue 这种规模下，默认阈值把 **810 个文件里的 192 个判成 `criti
 2. **我又一次把 `$` 写进了 PowerShell 双引号里的 Node 一行脚本**，
    `$/gm` 里的 `$` 被 PowerShell 当变量吃掉了，导致校验脚本"通过"了但一个字段都没检查到
    —— **假通过比失败更危险**。教训：稍微复杂点的 Node 代码一律写成文件再跑，别用 `-e` 内联。
+
+
+---
+
+## 2026-02-15 · 第八轮：把 githeat 塞进别人的 PR（含一个我自己写出来的真 bug）
+
+你出门没空推广，我就做了**唯一能持续带来曝光的产品动作**：让 githeat 出现在别人的
+Pull Request 里。仓库自己先用（`review.yml` 对自身 PR 生效），这是发布 Action 唯一诚实的方式。
+
+### 1. 新能力：`githeat review`
+
+```bash
+git diff --name-only origin/main... | githeat review        # 本地，看这次改动踩了哪些雷
+```
+
+只对**这次改动的文件**排名，输出 markdown（可直接当 PR 评论）或 JSON。
+实测输出（真实 vue 仓库 + 真实文件）：
+
+```
+packages/compiler-sfc/src/compileScript.ts  hotspot score 99.1/100
+(308 changes, 46 authors, last touched 16 days ago)
+```
+
+**"308 次改动、46 位作者"** —— 这是评审者在 PR 里根本看不到的上下文，也是这个功能的全部价值。
+
+### 2. GitHub Action（`action/`）
+
+零依赖，纯 Node 脚本 + fetch 发评论。三个刻意的设计：
+
+- **一个 PR 只留一条评论，用 PATCH 原地更新** —— 推 20 次提交不该刷 20 条评论
+- **没碰到热点文件就完全不说话** —— 小 PR 上保持安静，不制造噪音
+- **`fetch-depth: 0`** —— 没有真实历史就排名不了，workflow 里写死了
+
+已在本地用环境变量**模拟完整 Actions 环境**跑通（`INPUT_*` + `GITHUB_STEP_SUMMARY`），
+并确认 GitHub 已注册 `review.yml`（state=active，说明语法有效）。
+
+### 3. 顺手修掉的真实局限：分档阈值
+
+大仓库实测发现的：vue 上 810 个文件里 **192 个被标成 critical**，而且 **low 永远是 0**
+（分数地板在 24 左右）。绝对阈值在成熟仓库上丧失区分度。
+
+新增 `--bands absolute|percentile|auto`，默认 `auto`：**50 个以上上榜文件就按排名分档**
+（前 5% critical / 次 10% high / 次 25% medium）。效果：
+
+| 仓库 | auto（默认） | absolute（旧行为） |
+| --- | --- | --- |
+| express | 20 critical (5.1%) | 66 critical (16.7%) |
+| vue | 41 critical (5.1%) | 192 critical (23.7%) |
+
+### 4. 我自己写出来的 bug（记下来，这个值得反复看）
+
+第一版 `bandFromThresholds` 把**份额阈值**（0.05）当成**分数阈值**用了：
+
+```js
+if (rank !== null && total) {                    // 按排名分档
+  if (share < thresholds.critical) ...           // thresholds 却是绝对分数 70/45/20
+} else {
+  if (score >= thresholds.critical) ...          // thresholds 又变成份额 0.05
+}
+```
+
+同一个函数、同一组阈值，在两个分支里语义相反。结果：**所有仓库、所有文件，
+100% 都被判成 critical**。
+
+**为什么危险**：它不崩溃、不报错、输出格式完全正常，只是数字全错。
+如果我没去真实仓库上对一遍数字，这个 bug 会带着"分档功能已完成"的标签直接发布。
+
+**已加的防护**：新增测试断言"宽历史下四个档位都必须非空"——
+这条断言在 bug 存在时必然失败，而"critical 数量 > 0"这种弱断言抓不到它。
+另外给 review 的排序测试加了 fixture 前置断言（先证明 fixture 里 hot.js 确实比 cold.js 分高，
+再断言顺序），避免"测试数据区分度不够导致断言其实没意义"。
+
+### 5. 又踩的 PowerShell 坑（第三次了，这次记进结论）
+
+`node -e "..."` 里带 `$` 的正则 → `$` 被 PowerShell 吃掉 → **校验脚本"通过"但一个字段都没检查**。
+加上前面两次（中文注释被按 GBK 读、`icacls` 的 `(R,W)` 被当参数），
+**结论：任何超过三行的 Node 代码一律写成文件再跑，不要用 `-e` 内联。**
+
+### 6. 状态
+
+- 55 个测试全绿（新增 16 个：分档 7 个、review 8 个、action 清单 5 个）
+- CI 10/10 全绿，含"从打包产物里跑 review"这一步
+- 提交 `b26cca7`，13 个文件、+827 行
+- 仓库：https://github.com/xiaozhenweiyan/githeat
