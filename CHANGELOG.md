@@ -8,6 +8,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- `.githeatignore` plus `--ignore "a,b"` and `--no-ignore-file` — gitignore-style
+  exclusions for generated code the built-in filter cannot recognise. Supports
+  directory rules, `*`/`**`, root anchoring and `!` negation, with later patterns
+  winning. `githeat init` writes a starter file that contains only comments, so
+  committing it cannot silently change somebody else's ranking.
 - `githeat review` — rank only the files a change touched, from a path list on
   stdin or `--changed <file>`, as markdown (for a PR comment) or JSON.
 - A GitHub Action (`action/`) that reviews every pull request: posts one comment

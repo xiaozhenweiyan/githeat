@@ -112,6 +112,33 @@ non-code files such as `package.json` and `readme.md`. Config and docs are
 edited constantly and debugged never; scoring them buries the real signal.
 Override with `--ext ""`.
 
+**Excluding your own generated code.** The built-in filter cannot know that
+*your* `src/generated/api.ts` is machine-written. When a file keeps topping the
+ranking without deserving it, exclude it — permanently, in a file that travels
+with the repository:
+
+```bash
+githeat init                  # writes a starter .githeatignore (all comments)
+```
+
+```gitignore
+# .githeatignore — same syntax as .gitignore
+src/generated/                # a directory and everything under it
+*.min.js                      # a name, at any depth
+docs/api/*.md                 # anchored, because the pattern has a slash
+!src/generated/handwritten.ts # negation: later patterns win
+```
+
+Or for one run, without touching the repository:
+
+```bash
+githeat heat . --ignore "src/generated/,*.min.js"
+githeat heat . --no-ignore-file      # ignore the ignore file
+```
+
+`--ignore` wins over `.githeatignore`, which wins over the built-in noise
+patterns, so you can always force a file back into the ranking.
+
 **Author dates, not committer dates.** Rebases and squash merges rewrite the
 committer date, which would make every file look freshly touched. Windows are
 applied to author dates in UTC so a report means the same thing on every machine.

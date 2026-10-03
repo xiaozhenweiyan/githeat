@@ -9,6 +9,7 @@
  *   churn       how many lines this file keeps costing the team
  *   changes     how often the file is reopened (the better predictor of defects)
  */
+import { makeIgnoreMatcher, parseIgnoreText } from './ignore.mjs';
 
 /** Paths that are generated, vendored or otherwise not hand-edited. */
 const NOISE_PATTERNS = [
@@ -51,20 +52,22 @@ const extOf = (path) => {
 };
 
 /**
- * Build the "should this file be scored" predicate.
- *
  * @param {object} [opts]
  * @param {boolean} [opts.includeNoise=false]
  * @param {string[]|null} [opts.extensions]  null/undefined = DEFAULT_EXTENSIONS, [] = every file
+ * @param {string[]} [opts.ignore]           gitignore-style exclusion patterns
+ * @param {(path: string) => boolean} [opts.ignoreMatcher]  precompiled exclusions
  */
-export function makeFileFilter({ includeNoise = false, extensions } = {}) {
+export function makeFileFilter({ includeNoise = false, extensions, ignore, ignoreMatcher } = {}) {
   const extSet =
     extensions === undefined || extensions === null
       ? new Set(DEFAULT_EXTENSIONS)
       : new Set(extensions.map((e) => String(e).replace(/^\./, '').toLowerCase()));
   const anyExt = extSet.size === 0;
+  const excluded = ignoreMatcher ?? makeIgnoreMatcher(parseIgnoreText((ignore ?? []).join('\n')));
   return (path) => {
     if (!includeNoise && isNoisePath(path)) return false;
+    if (excluded(path)) return false; // user exclusions win over everything
     if (anyExt) return true;
     return extSet.has(extOf(path));
   };
@@ -108,11 +111,20 @@ const daysBetween = (aIso, bIso) => {
  * @param {number} [opts.now=Date.now()] reference time for recency weighting
  * @param {boolean} [opts.includeNoise=false]
  * @param {string[]} [opts.extensions]  undefined = DEFAULT_EXTENSIONS, [] = every file
+ * @param {string[]} [opts.ignore]      gitignore-style exclusion patterns (.githeatignore)
  * @param {'absolute'|'percentile'|'auto'} [opts.bands='absolute']  how risk bands are cut
  */
 export function analyze(commits, opts = {}) {
-  const { minCommits = DEFAULT_MIN_COMMITS, now = Date.now(), includeNoise = false, extensions, bands = 'absolute' } = opts;
-  const keep = makeFileFilter({ includeNoise, extensions });
+  const {
+    minCommits = DEFAULT_MIN_COMMITS,
+    now = Date.now(),
+    includeNoise = false,
+    extensions,
+    ignore,
+    ignoreMatcher,
+    bands = 'absolute',
+  } = opts;
+  const keep = makeFileFilter({ includeNoise, extensions, ignore, ignoreMatcher });
 
   /** @type {Map<string, {path:string,commits:number,churn:number,authors:Set<string>,first:string,last:string}>} */
   const stats = new Map();

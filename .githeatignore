@@ -1,0 +1,16 @@
+# .githeatignore — files that must never appear in a hotspot ranking.
+# Same syntax as .gitignore. Patterns match paths relative to the repository root.
+#
+#   src/generated/        a directory and everything under it
+#   *.min.js              a name, at any depth
+#   docs/api/*.md         anchored, because the pattern contains a slash
+#   !src/generated/x.ts   negation: later patterns win, so this re-includes it
+#
+# The built-in filter already skips lockfiles, node_modules, dist/, binaries and
+# non-source extensions. Add entries here for generated code that is committed,
+# vendored drops, fixtures with huge histories, or anything else that keeps
+# topping the ranking without deserving it.
+#
+# Exclusions can also be passed per run, without touching this file:
+#   githeat heat . --ignore "src/generated/,*.min.js"
+#   githeat heat . --no-ignore-file

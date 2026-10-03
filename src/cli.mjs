@@ -13,6 +13,7 @@ import { spawnSync } from 'node:child_process';
 import { isRepo, repoRoot, readHistory, headSha } from './git.mjs';
 import { analyze, parseExtensions, DEFAULT_MIN_COMMITS } from './analyze.mjs';
 import { readChangedList, reviewReport, renderReviewMarkdown } from './review.mjs';
+import { IGNORE_FILE, makeIgnoreMatcher, parseIgnoreText, IGNORE_TEMPLATE } from './ignore.mjs';
 import { renderSvg } from './svg.mjs';
 import { renderHtml } from './report.mjs';
 import { renderTable, renderTree, shouldUseColor } from './terminal.mjs';
@@ -28,6 +29,7 @@ USAGE
   githeat [heat] [dir] [options]     rank files by hotspot score (default command)
   githeat check  [dir] [options]     print a short risk report, exit 1 if thresholds break
   githeat review [dir] [options]     rank only the files a change touched (for PRs)
+  githeat init  [dir]                write a starter .githeatignore
   githeat install-hook [dir]         install a non-blocking pre-commit reminder
 
 ANALYSIS
@@ -42,6 +44,8 @@ ANALYSIS
                              use --ext "" to score every file, config and docs included
   --bands <mode>             absolute | percentile | auto (default auto)
                              auto = absolute for small repos, top-5%/15%/40% for 50+ files
+  --ignore <patterns>        comma-separated exclusions, e.g. "src/generated/,*.min.js"
+  --no-ignore-file           do not read .githeatignore
   --include-noise            keep lockfiles, generated and vendored files
 
 OUTPUT
@@ -71,10 +75,10 @@ REVIEW
 
 export function parseArgs(argv) {
   const args = { _: [], flags: {} };
-  const boot = { help: true, version: true, json: true, open: true, quiet: true, color: true, merges: true, force: true, all: true, 'include-noise': true, 'no-color': true };
+  const boot = { help: true, version: true, json: true, open: true, quiet: true, color: true, merges: true, force: true, all: true, 'include-noise': true, 'no-color': true, 'no-ignore-file': true };
   const takesValue = new Set([
     'since', 'until', 'author', 'rev', 'min-commits', 'top', 'depth', 'out', 'format', 'palette', 'tiles',
-    'max-score', 'max-critical', 'ext', 'bands', 'changed',
+    'max-score', 'max-critical', 'ext', 'bands', 'changed', 'ignore',
   ]);
   const known = new Set([...Object.keys(boot), ...takesValue]);
   for (let i = 0; i < argv.length; i += 1) {
@@ -148,6 +152,32 @@ function inferFormat(flags) {
   return 'table';
 }
 
+/**
+ * User-controlled exclusions, in precedence order:
+ *   --ignore "a,b"  >  <repo>/.githeatignore  >  built-in noise patterns
+ * Returns a compiled matcher and the pattern list, so a report can explain why a
+ * file the user expected to see is missing.
+ */
+export function loadIgnore(root, flags) {
+  const cliPatterns = splitPatterns(flags.ignore);
+  const file = join(root, IGNORE_FILE);
+  let text = '';
+  let source = null;
+  if (!flags['no-ignore-file'] && existsSync(file)) {
+    text = readFileSync(file, 'utf8');
+    source = file;
+  }
+  const patterns = [...parseIgnoreText(text), ...parseIgnoreText(cliPatterns.join('\n'))];
+  return { matcher: makeIgnoreMatcher(patterns), patterns: patterns.map((p) => p.source), source };
+}
+
+/** --ignore accepts repeats and comma-separated values; keep the raw strings. */
+function splitPatterns(value) {
+  if (value === undefined || value === true) return [];
+  const raw = Array.isArray(value) ? value : [value];
+  return raw.flatMap((v) => String(v).split(',')).map((s) => s.trim()).filter(Boolean);
+}
+
 /** Run the analysis pipeline for a directory. */
 export function runAnalysis(dir, flags) {
   const cwd = resolve(dir ?? '.');
@@ -163,10 +193,12 @@ export function runAnalysis(dir, flags) {
     rev: flags.rev ? String(flags.rev) : undefined,
     merges: Boolean(flags.merges),
   });
+  const ignore = loadIgnore(root, flags);
   const report = analyze(commits, {
     minCommits: num(flags['min-commits'], DEFAULT_MIN_COMMITS),
     includeNoise: Boolean(flags['include-noise']),
     extensions: parseExtensions(flags.ext),
+    ignoreMatcher: ignore.matcher,
     bands: parseBandMode(flags.bands),
   });
   if (commits.length === 0) {
@@ -175,10 +207,16 @@ export function runAnalysis(dir, flags) {
     );
   }
   const title = root.split(/[\\/]/).filter(Boolean).pop() ?? root;
-  return { report, root, title, rev: flags.rev ? String(flags.rev) : headSha(root) ?? 'HEAD' };
+  return {
+    report,
+    root,
+    title,
+    rev: flags.rev ? String(flags.rev) : headSha(root) ?? 'HEAD',
+    ignore,
+  };
 }
 
-function payload({ report, title, root, rev }, flags) {
+function payload({ report, title, root, rev, ignore }, flags) {
   return {
     tool: { name: pkg.name, version: pkg.version },
     generatedAt: new Date().toISOString(),
@@ -192,6 +230,8 @@ function payload({ report, title, root, rev }, flags) {
       includeNoise: Boolean(flags['include-noise']),
       bands: report.bands,
       bandCutoffs: report.bandCutoffs,
+      ignoreFile: ignore?.source ?? null,
+      ignorePatterns: ignore?.patterns ?? [],
     },
     summary: report.summary,
     hotspots: report.files,
@@ -416,6 +456,39 @@ function commandReview(argv) {
   return 0;
 }
 
+/**
+ * `githeat init` — write a starter .githeatignore.
+ *
+ * Deliberately all comments: a template with active rules would silently change
+ * everyone's ranking the moment it is committed.
+ */
+function commandInit(argv) {
+  const { _: positional, flags } = parseArgs(argv);
+  const cwd = resolve(positional[0] ?? '.');
+  if (!isRepo(cwd)) throw new Error(`${cwd} is not inside a git work tree`);
+  const root = repoRoot(cwd);
+  const target = join(root, IGNORE_FILE);
+
+  if (existsSync(target) && !flags.force) {
+    const existing = readFileSync(target, 'utf8');
+    const rules = parseIgnoreText(existing).length;
+    process.stdout.write(
+      `${target} already exists (${rules} active pattern${rules === 1 ? '' : 's'}).\n` +
+        'Edit it, or rerun with --force to replace it with the starter file.\n',
+    );
+    return 0;
+  }
+
+  writeFileSync(target, IGNORE_TEMPLATE, 'utf8');
+  process.stdout.write(
+    `${flags.force && existsSync(target) ? 'Replaced' : 'Created'} ${target}\n` +
+      'It is all comments, so your ranking will not change until you add a pattern.\n' +
+      'Ranking a file you never want to see again? Add its path, then:\n' +
+      `  node bin/githeat.mjs heat ${root === cwd ? '.' : root} --top 5\n`,
+  );
+  return 0;
+}
+
 export function main(argv) {
   const [first, ...rest] = argv;
   if (first === '--version' || first === '-v') {
@@ -429,6 +502,7 @@ export function main(argv) {
   try {
     if (first === 'check') return commandCheck(rest);
     if (first === 'review') return commandReview(rest);
+    if (first === 'init') return commandInit(rest);
     if (first === 'install-hook') return commandInstallHook(rest);
     if (first === 'help') {
       process.stdout.write(HELP);
