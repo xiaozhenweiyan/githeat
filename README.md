@@ -144,10 +144,19 @@ Nothing in the library touches the network or writes to your repo unless you ask
 ## Performance
 
 One `git log` call, one parse, one layout — no per-file subprocess, no index to
-keep warm. On a warm cache a run costs ~0.7 s wall time, of which ~0.18 s is Node
-start-up and ~0.26 s is git itself for a 359-commit repository; the JavaScript
-analysis is the cheap part. Full method and raw numbers:
-[`docs/benchmark.md`](docs/benchmark.md).
+keep warm.
+
+| repository | commits | ranked files | githeat |
+| --- | ---: | ---: | ---: |
+| chalk | 380 | 33 | 0.72 s |
+| express | 6 173 | 396 | 1.10 s |
+| vuejs/core | 6 532 | 810 | 1.45 s |
+
+Below a few thousand commits the cost is pure Node start-up (~0.7 s floor); at
+6 500 commits git itself is ~0.55 s and the whole run is 1.1–1.5 s. Scaling is
+close to linear in history size. Method, caveats and the raw comparison against
+a bare `git log` are in [`docs/benchmark.md`](docs/benchmark.md) — including
+what has **not** been measured.
 
 For very large monorepos, scope the window: `githeat --since 12.months`.
 

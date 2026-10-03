@@ -1,42 +1,77 @@
 # Benchmark
 
 Measured on Windows 11 (PowerShell 5.1), Node 22.23.2, git 2.55.0, warm file
-cache, median of three runs. `githeat heat <repo> --json > NUL` so terminal
-rendering is excluded. Reproduce with:
+cache, median of three runs. Timings come from `scripts/bench.mjs`, which runs
+`githeat heat <repo> --json` (terminal rendering excluded) and also times a bare
+`git log --name-only` on the same repository for comparison:
 
 ```bash
 git clone --filter=blob:none https://github.com/chalk/chalk /tmp/chalk
-time node bin/githeat.mjs heat /tmp/chalk --json > /dev/null
+node scripts/bench.mjs /tmp/chalk chalk
+# -> | chalk | 380 | 33 | 0.72 s | 0.13 s |
 ```
 
-| repository | commits | ranked files | githeat | raw `git log --name-only` |
+| repository | commits | ranked files | githeat (median of 3) | raw `git log --name-only` |
 | --- | ---: | ---: | ---: | ---: |
-| tiny fixture (`test/helpers.mjs`) | 12 | 3 | 0.69 s | 0.01 s |
-| slugify | 78 | 9 | 0.69 s | 0.02 s |
-| chalk | 359 | 33 | 0.74 s | 0.26 s |
-| django | — | — | *not measured, see below* | — |
+| githeat (this repo) | 15 | 6 | 0.79 s | 0.10 s |
+| fixture (`test/helpers.mjs`) | 12 | 3 | 0.69 s | 0.01 s |
+| slugify | 78 | 6 | 0.69 s | 0.11 s |
+| chalk | 380 | 33 | 0.72 s | 0.13 s |
+| express | 6 173 | 396 | 1.10 s | 0.52 s |
+| vuejs/core | 6 532 | 810 | 1.45 s | 0.58 s |
 
 Reading the numbers:
 
-- **Process start-up dominates.** `node -e 0` costs ~0.18 s on this machine, and
-  the measured floor for any `githeat` invocation is ~0.69 s. Below a few thousand
-  commits the analysis itself is in the noise.
-- **git dominates what is left.** Parsing 359 commits of `chalk` history costs
-  ~0.26 s; `githeat` adds roughly 0.3 s of JavaScript on top of start-up plus that
-  git call. There is no per-file subprocess: one `git log`, one parse, one layout.
+- **Process start-up dominates small repositories.** `node -e 0` costs ~0.18 s
+  here and the floor for any `githeat` invocation is ~0.69 s, so 15 commits and
+  380 commits measure the same. Below a few thousand commits the analysis is
+  inside the noise band and you should not think about its cost at all.
+- **Above a few thousand commits, git takes over.** On 6 500 commits a bare
+  `git log --name-only` costs ~0.55 s and the whole run costs 1.1–1.5 s. The
+  JavaScript side therefore contributes roughly 0.5–0.9 s on top of git plus
+  start-up — it is a single pass over the log with no per-file subprocess.
+- **Scaling is close to linear in history size**, which is what the design
+  predicts: one `git log`, one parse, one treemap layout.
 - **Memory** is proportional to the number of `(commit, path)` pairs held during
   the parse — strings only. For a monorepo with 100k+ commits, scope the window
-  with `--since 12.months` rather than hoping.
+  with `--since 12.months` instead of hoping.
 
-## What has not been measured
+## What this measures, and what it does not
 
-**No repository above ~400 commits has been benchmarked yet.** Three attempts to
-clone larger targets (express, vue, django, rust) failed on this machine's network
-— the partial `django` clone ended up without a usable HEAD and was discarded
-rather than guessed at.
+Reproduce the two large rows with:
 
-So the honest claim is: the parse is a single pass over `git log` and the cost is
-expected to grow linearly with history size, but **that expectation is untested**.
-If you run `githeat` on a large repository, a PR adding the number here is one of
-the most useful contributions this project can receive — and if it is slow, that
-is a bug report worth opening.
+```bash
+git clone --filter=blob:none --no-checkout --depth 5000 https://github.com/vuejs/core /tmp/vue
+node scripts/bench.mjs /tmp/vue vuejs/core
+```
+
+Caveats, stated plainly:
+
+- **`--depth 5000` truncates history.** The clone holds the most recent 5 000
+  commits, so "6 532 commits" is what the clone contains, not the project's full
+  history. Full-history numbers will be larger; the shape of the curve is what
+  matters here.
+- **Nothing above ~7 000 commits has been measured.** Cloning the very large
+  targets (django, rust) has failed on this machine's network so far; a partial
+  `django` clone arrived without a usable `HEAD` and was deleted rather than
+  guessed at. That is a gap in the evidence, not a claim about performance.
+- **One machine, one OS.** No macOS or Linux timing has been recorded yet.
+
+If you run `githeat` on a larger repository, a pull request adding its row here
+is one of the most useful contributions this project can receive — and if it is
+slow, that is a bug report worth opening.
+
+## Incidental finding: the risk bands are calibrated for small repositories
+
+On `vuejs/core` the default thresholds put **192 of 810 files in `critical`**
+(score ≥ 70). That is not a bug — a 6 500-commit history really does have a lot
+of heavily-edited files — but it means the bands stop discriminating at that
+size. Two ways to use the tool on a large repository:
+
+```bash
+githeat heat . --since 12.months     # recent pressure only, bands behave again
+githeat heat . --top 20              # ignore bands, look at the ranked list
+```
+
+A `--bands-thresholds` option (percentile-based instead of absolute) is an open
+idea; nobody has needed it badly enough yet to write it.

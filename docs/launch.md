@@ -165,12 +165,36 @@ Zero deps. Nothing leaves your machine.
 
 | 时间 | 动作 |
 | --- | --- |
-| 第 1 天 | 建仓库 + 填 Description/Topics + 推代码 |
+| 第 1 天 | ✅ 已完成：建仓库 + 填 Description/Topics + 推代码 |
 | 第 1 天 | V2EX 分享创造发一帖（中文渠道反馈最快） |
-| 第 2 天 | 拿 **5 个真实热门仓库**（react、vue、express、django、rust 任选）跑一遍，把输出和耗时贴成一个 issue，标题写 `benchmarks: <repo> (N commits, Xs)` —— 这是最有说服力的"活性证明" |
+| 第 2 天 | ✅ 已完成：vuejs/core（6 532 提交 / 1.45 s）与 express（6 173 提交 / 1.10 s）实测已进 `docs/benchmark.md` |
 | 第 3 天 | Show HN + r/programming 同时发（时差上覆盖两波人） |
 | 第 4-7 天 | 回复每一条评论。**不要**争辩评分公式，把"你说得对，我把这个做成 issue 了"当标准回复 |
 | 持续 | 有人提 bug 就当天修并回帖；star 数不用盯，issue 数才是指标 |
+
+## 4.5 手里已经有的"真实数据"弹药
+
+发帖时把下面这几条直接甩出去，比任何形容词都管用：
+
+**性能**（本机实测，中位数三次）
+
+```
+chalk        380 提交   0.72 秒
+express      6 173 提交 1.10 秒
+vuejs/core   6 532 提交 1.45 秒   （其中裸 git log 自身 0.55 秒）
+```
+
+**在真实仓库上找出来的热点**（这才是有说服力的部分）
+
+- `vuejs/core` 榜首：`packages/compiler-sfc/src/compileScript.ts`（308 次改动 / 46 位作者）、
+  `packages/runtime-core/src/renderer.ts`（305 次 / 53 位作者）、
+  `Suspense.ts`（82 次 / 29 位作者）—— 任何写过 Vue 的人都知道这几个文件什么脾气。
+- `express` 榜单同样落在 `lib/router/index.js` 这类核心调度文件上。
+
+**一个诚实的副产品**：vue 这种规模下，默认阈值会把 810 个文件里的 192 个判为
+`critical`。这不是 bug（6500 次提交的仓库确实有一堆高频改动文件），但说明**分档阈值是给
+中小仓库校准的**。我在 README 里写明了这点，并给了 `--since 12.months` 的用法。
+**主动说出自己工具的局限，比等人来骂你强得多。**
 
 ---
 

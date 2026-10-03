@@ -142,9 +142,17 @@ console.log(report.files[0]); // { path, score, commits, churn, authors, last, .
 ## 性能
 
 一次 `git log`、一次解析、一次布局——没有逐文件子进程，也没有需要预热的索引。
-热缓存下一次运行约 0.7 秒，其中约 0.18 秒是 Node 启动、约 0.26 秒是 359 个提交的
-git 自身开销，JS 分析只占很小一部分。完整测量方法见
-[`docs/benchmark.md`](docs/benchmark.md)。
+
+| 仓库 | 提交数 | 上榜文件 | githeat 耗时 |
+| --- | ---: | ---: | ---: |
+| chalk | 380 | 33 | 0.72 秒 |
+| express | 6 173 | 396 | 1.10 秒 |
+| vuejs/core | 6 532 | 810 | 1.45 秒 |
+
+几千个提交以下，耗时几乎全是 Node 启动（约 0.7 秒下限）；到 6 500 提交时 git 自身
+约 0.55 秒，整体 1.1–1.5 秒，随历史规模接近线性增长。测量方法、注意事项，以及与裸
+`git log` 的原始对比都在 [`docs/benchmark.md`](docs/benchmark.md) —— 里面也写明了
+**哪些还没测**。
 
 超大单体仓库建议限定窗口：`githeat --since 12.months`。
 
