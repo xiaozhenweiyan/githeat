@@ -630,3 +630,67 @@ README 里邀请的那类反馈（「它把我这个文件排到 99，凭啥」�
 
 - **78 个测试全绿**（本轮新增 9 个）
 - 仓库：https://github.com/xiaozhenweiyan/githeat
+
+---
+
+## 2026-02-15 · 第十一轮：行级定位 `githeat lines`（你提的那个想法）
+
+你问「热力图能不能定位到文件内的某个范围」。能，我做了，**而且这个想法戳中的正是当前最大的盲区**：
+vue 榜首的 `compileScript.ts` 有 308 次改动，但用户拿到这个数字**仍然不知道该看哪一行**。
+
+### 先量成本，再决定做不做（幸好量了）
+
+在真实 vue 仓库上跑 `git blame`，结果：**24 秒，退出码 128，输出 0 字节**。
+
+原因不是慢，是**根本跑不了**：那个 vue 仓库是 `--filter=blob:none` 克隆的，
+**blob 不在本地**，blame 需要每个历史版本的文件内容，于是 git 去 GitHub 一个个拉，
+网络超时后放弃。而 `blob:none` 现在是大仓库克隆的常见默认。
+
+在**完整克隆**上同一个操作只要 **0.13 秒**（githeat 自身 587 行）。
+
+**这个发现直接改变了功能设计**：不能只是"实现 blame"，必须**先做一次零成本的预检**
+（读一条 git config），命中部分克隆就立刻带解决方案退出：
+
+```
+githeat: this is a partial clone (blob:none), so line history would have to be
+fetched from the network file by file. Run `git fetch --refetch --filter=blob:limit=1m`
+or use a full clone, then try again.
+```
+
+实测**0.1 秒退出**，而不是让用户等 24 秒看一个 fatal。
+
+### 两个刻意的诚实设计
+
+1. **`git blame` 给的是每行「最后一次」改动，不是「被改过几次」。**
+   所以这是**年代图（staleness）**，不是"每行 churn"。输出里、README 里、CHANGELOG 里
+   都写成 staleness，并且明确说：一大片老代码的意思是「很久没人需要改它了」，
+   **不等于「它是对的」**。做不出每行 churn 就直说，而不是含糊其辞让人误会。
+2. **行会移动**，所以只按当前文件的行号呈现，不声称历史区间。
+
+### 输出效果（合成历史，展示真实形态）
+
+```
+age of each line, by the commit that last touched it:
+  last week        60   20%  ███████
+  last year        80   26%  █████████
+  last 2 years     70   23%  ████████
+  older            94   31%  ███████████
+
+most untouched: lines 1-242 (242 lines) — nothing here for about 900 days
+newest work:    lines 243-302 (60 lines) — last touched 4 days ago
+```
+
+**这个对比就是全部价值**：编辑一个热点文件之前，知道「新鲜的 60 行是活跃区，
+老的 242 行是最容易让你意外的地方」。
+
+### 过程中改的两处
+
+- **桶不够细**：原来只有 5 档、最后一档是"一年以上"，于是 500 天的代码和 6 年的代码看起来一样。
+  改成 6 档（周/月/季/年/两年/更久），跨度覆盖十年。
+- **相邻旧块要合并**：500 天和 200 天的两块相邻时，原本分开报，用户得自己加。
+  现在是「1-242 行，大约 900 天没动过」——一句话说完。
+
+### 状态
+
+- **99 个测试全绿**（本轮新增 13 个）
+- 提交见下

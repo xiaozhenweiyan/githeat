@@ -16,6 +16,7 @@ import { readChangedList, reviewReport, renderReviewMarkdown } from './review.mj
 import { IGNORE_FILE, makeIgnoreMatcher, parseIgnoreText, IGNORE_TEMPLATE } from './ignore.mjs';
 import { explainExclusion, renderExplanation } from './explain.mjs';
 import { compareToBase, renderComparison } from './compare.mjs';
+import { readLineAges, renderLineReport, isPartialClone, AGE_BUCKETS } from './lines.mjs';
 import { renderSvg } from './svg.mjs';
 import { renderHtml } from './report.mjs';
 import { renderTable, renderTree, shouldUseColor } from './terminal.mjs';
@@ -32,6 +33,7 @@ USAGE
   githeat check  [dir] [options]     print a short risk report, exit 1 if thresholds break
   githeat review [dir] [options]     rank only the files a change touched (for PRs)
   githeat explain <path> [dir]       why a file is (or is not) in the ranking
+  githeat lines [path] [dir]         where inside one file the churn sits
   githeat init  [dir]                write a starter .githeatignore
   githeat install-hook [dir]         install a non-blocking pre-commit reminder
 
@@ -73,13 +75,18 @@ REVIEW
   --format markdown|json     markdown comment body (default) or machine output
   --top <n>                  rows in the generated table (default 10)
 
+LINES
+  --map                      print the per-line age column, not just the summary
+  --format text|json         report (default) or machine output
+  --rev <range>              blame a revision other than HEAD
+
   -h, --help                 this text
   -v, --version              print the version
 `;
 
 export function parseArgs(argv) {
   const args = { _: [], flags: {} };
-  const boot = { help: true, version: true, json: true, open: true, quiet: true, color: true, merges: true, force: true, all: true, 'include-noise': true, 'no-color': true, 'no-ignore-file': true };
+  const boot = { help: true, version: true, json: true, open: true, quiet: true, color: true, merges: true, force: true, all: true, 'include-noise': true, 'no-color': true, 'no-ignore-file': true, map: true };
   const takesValue = new Set([
     'since', 'until', 'author', 'rev', 'min-commits', 'top', 'depth', 'out', 'format', 'palette', 'tiles',
     'max-score', 'max-critical', 'ext', 'bands', 'changed', 'ignore', 'base',
@@ -558,6 +565,59 @@ function commandInit(argv) {
   return 0;
 }
 
+/**
+ * `githeat lines <path>` — where inside one file the churn sits.
+ *
+ * Fails fast on a partial clone: blame would fetch every historical blob from the
+ * network, one file at a time, and then fail anyway.
+ */
+function commandLines(argv) {
+  const { _: positional, flags } = parseArgs(argv);
+  if (positional.length === 0) {
+    throw new Error('lines needs a file path, e.g. githeat lines src/index.js');
+  }
+  const file = positional[0].replace(/\\/g, '/').replace(/^\.\//, '');
+  const cwd = resolve(positional[1] ?? '.');
+  if (!isRepo(cwd)) throw new Error(`${cwd} is not inside a git work tree`);
+  const root = repoRoot(cwd);
+
+  if (isPartialClone(root)) {
+    throw new Error(
+      'this is a partial clone (blob:none), so line history would have to be fetched from the network file by file. ' +
+        'Run `git fetch --refetch --filter=blob:limit=1m` or use a full clone, then try again.',
+    );
+  }
+
+  const result = readLineAges({ cwd: root, file, rev: flags.rev ? String(flags.rev) : 'HEAD' });
+
+  if (String(flags.format ?? 'text').toLowerCase() === 'json') {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          file,
+          total: result.total,
+          buckets: AGE_BUCKETS.map((bucket, i) => ({ bucket: bucket.label, lines: result.counts[i] })),
+          oldest: result.oldest,
+          newest: result.newest,
+          regions: result.regions,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    return 0;
+  }
+
+  process.stdout.write(
+    renderLineReport(result, {
+      title: root.split(/[\\/]/).filter(Boolean).pop() ?? root,
+      range: flags.rev ? String(flags.rev) : 'HEAD',
+      showMap: Boolean(flags.map),
+    }),
+  );
+  return 0;
+}
+
 export function main(argv) {
   const [first, ...rest] = argv;
   if (first === '--version' || first === '-v') {
@@ -572,6 +632,7 @@ export function main(argv) {
     if (first === 'check') return commandCheck(rest);
     if (first === 'review') return commandReview(rest);
     if (first === 'explain') return commandExplain(rest);
+    if (first === 'lines') return commandLines(rest);
     if (first === 'init') return commandInit(rest);
     if (first === 'install-hook') return commandInstallHook(rest);
     if (first === 'help') {

@@ -197,6 +197,50 @@ ranked files are banded by rank instead — top 5 % `critical`, next 10 % `high`
 next 25 % `medium` — which keeps the label meaningful at any size. Pass
 `--bands absolute` or `--bands percentile` to pin it.
 
+## Inside a file
+
+A ranking says *which* file. For a 1 300-line file with 305 changes that is half
+an answer — the other half is where inside it:
+
+```console
+$ githeat lines parser.js
+parser.js
+my-service · HEAD · 304 lines tracked by blame
+
+age of each line, by the commit that last touched it:
+  last week        60   20%  ███████
+  last month        0    0%
+  last quarter      0    0%
+  last year        80   26%  █████████
+  last 2 years     70   23%  ████████
+  older            94   31%  ███████████
+
+largest contiguous regions (>= 8 lines):
+  lines     1-92      92 lines  older
+  lines   163-242     80 lines  last year
+  lines    93-162     70 lines  last 2 years
+  lines   243-302     60 lines  last week
+
+most untouched: lines 1-242 (242 lines) — nothing here for about 900 days
+newest work:    lines 243-302 (60 lines) — last touched 4 days ago
+```
+
+`--map` prints a per-line column instead of the summary when you want to see the
+shape; `--format json` gives the buckets and regions to a script.
+
+**Read it as staleness, not churn.** `git blame` reports the *last* commit that
+touched each line, so this is an age map: a large old region means "nobody has
+needed to change this in a long time", which is not the same as "this is correct".
+It is the opposite question from the file ranking, and the useful one when you are
+about to edit a hotspot: the fresh 60 lines are where the action is, the 242 old
+ones are where a change is most likely to surprise you.
+
+**It needs a full clone.** On a `--filter=blob:none` clone — increasingly the
+default for big repositories — blame would have to fetch every historical blob
+over the network, one file at a time, and then fail anyway. `githeat` detects
+that configuration and says so immediately instead of stalling, and tells you the
+command that fixes it.
+
 ## On every pull request
 
 A repo-wide ranking is a monthly report. The version that earns its keep runs on

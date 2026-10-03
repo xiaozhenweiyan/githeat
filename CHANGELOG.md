@@ -8,6 +8,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **`githeat lines <path>`** — where inside one file the churn sits. A ranking
+  answers "which file"; for a 1 300-line file with 305 changes that is half an
+  answer. Shows the age distribution per line, the largest contiguous regions,
+  and the widest untouched and freshest spans ("lines 1-242, nothing here for
+  about 900 days"). `--map` prints a per-line column, `--format json` the data.
+  Presented as a **staleness** map everywhere, because blame reports the last
+  commit per line, not how often a line changed — a large old region means nobody
+  has needed to touch it, which is not the same as it being correct.
+  Refuses immediately, with the fix, on a `--filter=blob:none` clone, where blame
+  would otherwise spend tens of seconds per file fetching blobs and then fail.
 - **`--base <ref>`** — compare the current ranking against a baseline revision and
   list what moved: hotter, cooler, new, gone. Resolved through `git merge-base` so
   a branch that is behind does not get credited with work it never did, and scored

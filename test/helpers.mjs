@@ -10,8 +10,14 @@ import { fileURLToPath } from 'node:url';
 
 export const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'githeat.mjs');
 
-/** Run a git command inside `cwd` and fail loudly. */
-export function gitIn(cwd, args) {
+/**
+ * Run a git command inside `cwd` and fail loudly.
+ *
+ * `date` sets both author and committer dates. `git commit --date` only sets the
+ * author date, and `git blame` reports the committer date, so line-age fixtures
+ * are silently wrong without this.
+ */
+export function gitIn(cwd, args, { date } = {}) {
   const res = spawnSync('git', args, {
     cwd,
     encoding: 'utf8',
@@ -21,6 +27,7 @@ export function gitIn(cwd, args) {
       GIT_AUTHOR_EMAIL: 'test@example.com',
       GIT_COMMITTER_NAME: 'Test',
       GIT_COMMITTER_EMAIL: 'test@example.com',
+      ...(date ? { GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } : {}),
       GIT_CONFIG_GLOBAL: join(tmpdir(), 'githeat-no-such-global-config'),
       GIT_CONFIG_SYSTEM: join(tmpdir(), 'githeat-no-such-system-config'),
     },

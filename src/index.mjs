@@ -45,6 +45,16 @@ export { renderTable, renderTree, shouldUseColor } from './terminal.mjs';
 export { readChangedList, reviewReport, renderReviewMarkdown } from './review.mjs';
 export { explainExclusion, renderExplanation } from './explain.mjs';
 export { compareToBase, renderComparison, SCORE_EPSILON } from './compare.mjs';
+export {
+  AGE_BUCKETS,
+  MIN_REGION_LINES,
+  bucketOf,
+  isPartialClone,
+  parseBlame,
+  regionsOf,
+  readLineAges,
+  renderLineReport,
+} from './lines.mjs';
 export { colorForScore, paletteNames, legendStops } from './colors.mjs';
 
 export const version = '0.1.0';
