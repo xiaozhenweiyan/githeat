@@ -105,6 +105,28 @@ const daysBetween = (aIso, bIso) => {
 };
 
 /**
+ * Compare a file's second-half activity with its first-half activity.
+ *
+ * Expressed as a share rather than a ratio, because "three of this file's five
+ * changes happened in the second half of the window" is a sentence a user can
+ * check, while "the ratio is 1.5" invites arguments the data cannot settle.
+ *
+ * Both gates matter: below five changes in total the share is noise, and a
+ * share between 40 % and 60 % is balanced work, not a direction.
+ *
+ * @returns {'rising'|'cooling'|'steady'}
+ */
+export const MIN_CHANGES_FOR_TREND = 5;
+export function trendOf(earlier, recent) {
+  const total = earlier + recent;
+  if (total < MIN_CHANGES_FOR_TREND) return 'steady'; // too little signal to call a direction
+  const share = recent / total;
+  if (share >= 0.6) return 'rising';
+  if (share <= 0.4) return 'cooling';
+  return 'steady';
+}
+
+/**
  * @param {Array<{sha:string,date:string,author:string,files:string[]}>} commits
  * @param {object} [opts]
  * @param {number} [opts.minCommits=2]  ignore files touched fewer times
@@ -139,7 +161,19 @@ export function analyze(commits, opts = {}) {
   const stats = new Map();
   let noiseCommits = 0;
 
+  /**
+   * Trend split point: the middle of the analysed range.
+   *
+   * A single snapshot cannot tell "getting hotter" from "has always been hot",
+   * and the difference decides whether you refactor or just keep an eye on it.
+   * Half the window is the cheapest defensible split — no new options, no
+   * assumption about release cadence.
+   */
+  const windowDates = commits.map((c) => c.date).sort();
+  const trendSplit = windowDates.length > 1 ? windowDates[Math.floor(windowDates.length / 2)] : null;
+
   for (const commit of commits) {
+    const isSecondHalf = trendSplit !== null && commit.date >= trendSplit;
     for (const path of commit.files) {
       const counts = touched.get(path) ?? { commits: 0, first: commit.date, last: commit.date };
       counts.commits += 1;
@@ -153,13 +187,24 @@ export function analyze(commits, opts = {}) {
       }
       let entry = stats.get(path);
       if (!entry) {
-        entry = { path, commits: 0, churn: 0, authors: new Set(), first: commit.date, last: commit.date };
+        entry = {
+          path,
+          commits: 0,
+          churn: 0,
+          authors: new Set(),
+          first: commit.date,
+          last: commit.date,
+          recent: 0,
+          earlier: 0,
+        };
         stats.set(path, entry);
       }
       entry.commits += 1;
       // `--name-only` gives us one line per changed path: churn == files changed
       // per commit, summed. It is an honest, cheap proxy for edit pressure.
       entry.churn += 1;
+      if (isSecondHalf) entry.recent += 1;
+      else entry.earlier += 1;
       entry.authors.add(commit.author);
       if (commit.date < entry.first) entry.first = commit.date;
       if (commit.date > entry.last) entry.last = commit.date;
@@ -192,6 +237,9 @@ export function analyze(commits, opts = {}) {
         last: f.last,
         ageDays: Math.round(ageDays),
         score,
+        trend: trendOf(f.earlier, f.recent),
+        earlier: f.earlier,
+        recent: f.recent,
         // kept so `githeat explain` can show the arithmetic instead of asking
         // the user to trust the number
         components: {

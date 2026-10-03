@@ -106,6 +106,22 @@ score = 100 × (0.68 × churn + 0.32 × changes) × recency
 
 Bands: `critical ≥ 70`, `high ≥ 45`, `medium ≥ 20`, `low` below that.
 
+**Direction matters as much as level.** A snapshot cannot tell a file that is
+getting worse from one that has always been bad, so every file also carries a
+trend comparing the second half of the analysed window with the first:
+
+```
+   #  score  heat           changes     churn  trend  auth  last  file
+   1   99.2  ████████████        82        82  - flat   29   15d  Suspense.ts
+   2   99.1  ████████████       305       305  v down   53   16d  renderer.ts
+  12   98.6  ████████████       131       131   ^ up    30   26d  hydration.ts
+```
+
+`rising` means 60 % or more of a file's changes happened in the second half of
+the window, `cooling` 40 % or less, and a file needs at least five changes before
+a direction is claimed at all. `hydration.ts` is the one to worry about: still
+scoring high, but on its way up rather than down.
+
 **What is filtered before scoring:** lockfiles, `node_modules/`, `vendor/`,
 `dist/`, build output, minified files, images, binaries — and, by default,
 non-code files such as `package.json` and `readme.md`. Config and docs are

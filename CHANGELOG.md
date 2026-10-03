@@ -8,6 +8,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Trend per file** (`rising` / `cooling` / `steady`) — the second half of the
+  analysed window compared with the first, shown as a `trend` column and in
+  `explain`. A snapshot cannot distinguish a file that is getting worse from one
+  that has always been bad, and that distinction decides whether you refactor now
+  or keep an eye on it. Rising means 60 %+ of a file's changes landed in the
+  second half, cooling 40 % or less, and a direction needs five changes before
+  it is claimed at all. Thresholds are shares rather than ratios because "three
+  of its five changes happened late" is checkable and "the ratio is 1.5" is not.
 - `githeat explain <path>` — why a file is, or is not, in the ranking. Prints the
   score arithmetic (the two normalised signals, the recency multiplier and the
   band cut-offs) or names the exact exclusion reason (`noise`, `ignored`,

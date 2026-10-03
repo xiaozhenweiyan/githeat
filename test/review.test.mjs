@@ -8,7 +8,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { analyze, bandOf, resolveBandMode, percentileCutoffs, ABSOLUTE_BANDS, PERCENTILE_BANDS, AUTO_PERCENTILE_FROM } from '../src/analyze.mjs';
+import { analyze, bandOf, resolveBandMode, percentileCutoffs, trendOf, ABSOLUTE_BANDS, PERCENTILE_BANDS, AUTO_PERCENTILE_FROM } from '../src/analyze.mjs';
 import { readChangedList, reviewReport, renderReviewMarkdown } from '../src/review.mjs';
 import { parseBandMode } from '../src/cli.mjs';
 
@@ -108,6 +108,55 @@ test('readChangedList normalises, dedupes and skips unusable lines', () => {
     assert.deepEqual(readChangedList(null, ''), []);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('trendOf needs both signal and a clear direction', () => {
+  // too little activity to have a direction at all
+  assert.equal(trendOf(1, 1), 'steady');
+  assert.equal(trendOf(2, 2), 'steady');
+  assert.equal(trendOf(3, 1), 'steady', 'four changes in total is below the signal gate');
+  assert.equal(trendOf(4, 0), 'steady');
+
+  // a clear share split with enough activity behind it
+  assert.equal(trendOf(0, 5), 'rising');
+  assert.equal(trendOf(5, 0), 'cooling');
+  assert.equal(trendOf(2, 8), 'rising');
+  assert.equal(trendOf(8, 2), 'cooling');
+  assert.equal(trendOf(2, 3), 'rising', '60% is the boundary and counts as rising');
+  assert.equal(trendOf(3, 2), 'cooling', '40% is the boundary and counts as cooling');
+
+  // balanced work is not a trend
+  assert.equal(trendOf(5, 5), 'steady');
+  assert.equal(trendOf(4, 5), 'steady');
+});
+
+test('analysed files carry a trend split at the middle of the window', () => {
+  const commits = [];
+  for (let i = 0; i < 10; i += 1) {
+    const day = String(i + 1).padStart(2, '0');
+    const files = ['src/steady.js'];
+    if (i <= 2 || i === 7 || i === 8) files.push('src/cooling.js'); // 3 early, 2 late
+    if (i <= 1 || i >= 6) files.push('src/rising.js'); // 2 early, 4 late
+    if (i % 3 === 0) files.push('src/periodic.js');
+    commits.push({ sha: `t${i}`, date: `2024-03-${day}T00:00:00Z`, author: 'A', files });
+  }
+  const report = analyze(commits, { now: Date.parse('2024-04-01T00:00:00Z'), minCommits: 1 });
+  const byPath = new Map(report.files.map((f) => [f.path, f]));
+
+  assert.equal(byPath.get('src/rising.js').trend, 'rising');
+  assert.equal(byPath.get('src/rising.js').earlier, 2);
+  assert.equal(byPath.get('src/rising.js').recent, 4);
+  assert.equal(byPath.get('src/cooling.js').trend, 'cooling');
+  assert.equal(byPath.get('src/cooling.js').earlier, 3);
+  assert.equal(byPath.get('src/cooling.js').recent, 2);
+  assert.equal(byPath.get('src/steady.js').trend, 'steady');
+  assert.equal(byPath.get('src/steady.js').earlier + byPath.get('src/steady.js').recent, 10);
+
+  // every ranked file must expose the fields the table and explain rely on
+  for (const f of report.files) {
+    assert.ok(Number.isInteger(f.earlier) && Number.isInteger(f.recent), `${f.path} lacks a trend split`);
+    assert.ok(['rising', 'cooling', 'steady'].includes(f.trend));
   }
 });
 

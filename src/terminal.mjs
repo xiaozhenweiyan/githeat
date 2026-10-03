@@ -68,6 +68,12 @@ function truncate(s, max) {
 }
 
 /**
+ * ASCII only, and unambiguous in a plain log: an arrow glyph would render as a
+ * box in half the terminals this ends up pasted into.
+ */
+export const trendGlyph = (trend) => (trend === 'rising' ? '^ up' : trend === 'cooling' ? 'v down' : '- flat');
+
+/**
  * @param {object} report
  * @param {object} [opts]
  * @param {number} [opts.top=15]
@@ -126,7 +132,7 @@ export function renderTable(report, opts = {}) {
   const scoreW = 5;
   const barW = 12;
   const numW = 8;
-  const fixed = rankW + scoreW + barW + numW * 2 + 4 * 2 + 4 * 3;
+  const fixed = rankW + scoreW + barW + numW * 2 + 4 * 2 + 4 * 3 + 5;
   const pathW = Math.max(24, width - fixed);
 
   const head = [
@@ -135,6 +141,7 @@ export function renderTable(report, opts = {}) {
     'heat'.padEnd(barW),
     'changes'.padStart(numW),
     'churn'.padStart(numW),
+    'trend'.padStart(5),
     'auth'.padStart(4),
     'last'.padStart(4),
     'file'.padEnd(pathW),
@@ -153,6 +160,7 @@ export function renderTable(report, opts = {}) {
         heat,
         String(f.commits).padStart(numW),
         fmt(f.churn).padStart(numW),
+        paint(trendGlyph(f.trend ?? 'steady').padStart(5), f.trend === 'rising' ? 80 : 15, color),
         String(f.authors).padStart(4),
         humanAge(f.ageDays).padStart(4),
         truncate(f.path, pathW).padEnd(pathW),

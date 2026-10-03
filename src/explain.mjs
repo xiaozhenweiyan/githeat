@@ -97,6 +97,11 @@ export function renderExplanation({ path, report, exclusion, history, title, ran
   lines.push(`  recency   ${c.recency.toFixed(3)}   last change ${file.last.slice(0, 10)} (${file.ageDays} days ago)`);
   lines.push(`  ordinary  base ${c.base.toFixed(3)} before the recency multiplier`);
   lines.push('');
+  lines.push(
+    `  trend     ${file.trend}   ${file.earlier} change(s) in the first half of the window, ${file.recent} in the second`,
+  );
+  lines.push('            (rising/cooling use a 60/40 share split, and need 4+ changes to call it)');
+  lines.push('');
   lines.push('  normalisation is relative to this repository, not absolute:');
   lines.push(`    churn of the 90th-percentile file maps to 1.000, this file scores ${c.churnScore.toFixed(3)}`);
   lines.push(`    the same for change count: 1.000 there, ${c.changeScore.toFixed(3)} here`);

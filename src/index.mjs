@@ -14,6 +14,7 @@ export { readHistory, parseLog, normalizeWhen, parseWhen, isRepo, repoRoot, head
 export {
   analyze,
   bandOf,
+  trendOf,
   resolveBandMode,
   percentileCutoffs,
   bandFromThresholds,
@@ -27,6 +28,7 @@ export {
   ABSOLUTE_BANDS,
   PERCENTILE_BANDS,
   AUTO_PERCENTILE_FROM,
+  MIN_CHANGES_FOR_TREND,
 } from './analyze.mjs';
 export {
   IGNORE_FILE,
