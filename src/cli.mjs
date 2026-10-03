@@ -10,11 +10,12 @@ import { dirname, resolve, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-import { isRepo, repoRoot, readHistory, headSha } from './git.mjs';
+import { isRepo, repoRoot, readHistory, headSha, mergeBase } from './git.mjs';
 import { analyze, parseExtensions, DEFAULT_MIN_COMMITS } from './analyze.mjs';
 import { readChangedList, reviewReport, renderReviewMarkdown } from './review.mjs';
 import { IGNORE_FILE, makeIgnoreMatcher, parseIgnoreText, IGNORE_TEMPLATE } from './ignore.mjs';
 import { explainExclusion, renderExplanation } from './explain.mjs';
+import { compareToBase, renderComparison } from './compare.mjs';
 import { renderSvg } from './svg.mjs';
 import { renderHtml } from './report.mjs';
 import { renderTable, renderTree, shouldUseColor } from './terminal.mjs';
@@ -48,6 +49,7 @@ ANALYSIS
                              auto = absolute for small repos, top-5%/15%/40% for 50+ files
   --ignore <patterns>        comma-separated exclusions, e.g. "src/generated/,*.min.js"
   --no-ignore-file           do not read .githeatignore
+  --base <ref>               compare against a revision or branch (uses the merge base)
   --include-noise            keep lockfiles, generated and vendored files
 
 OUTPUT
@@ -80,7 +82,7 @@ export function parseArgs(argv) {
   const boot = { help: true, version: true, json: true, open: true, quiet: true, color: true, merges: true, force: true, all: true, 'include-noise': true, 'no-color': true, 'no-ignore-file': true };
   const takesValue = new Set([
     'since', 'until', 'author', 'rev', 'min-commits', 'top', 'depth', 'out', 'format', 'palette', 'tiles',
-    'max-score', 'max-critical', 'ext', 'bands', 'changed', 'ignore',
+    'max-score', 'max-critical', 'ext', 'bands', 'changed', 'ignore', 'base',
   ]);
   const known = new Set([...Object.keys(boot), ...takesValue]);
   for (let i = 0; i < argv.length; i += 1) {
@@ -209,6 +211,21 @@ export function runAnalysis(dir, flags) {
     );
   }
   const title = root.split(/[\\/]/).filter(Boolean).pop() ?? root;
+  const comparison = flags.base
+    ? compareToBase({
+        cwd: root,
+        base: String(flags.base),
+        since: flags.since ? String(flags.since) : undefined,
+        until: flags.until ? String(flags.until) : undefined,
+        author: flags.author ? String(flags.author) : undefined,
+        rev: flags.rev ? String(flags.rev) : undefined,
+        merges: Boolean(flags.merges),
+        minCommits: num(flags['min-commits'], DEFAULT_MIN_COMMITS),
+        extensions: parseExtensions(flags.ext),
+        ignoreMatcher: ignore.matcher,
+        bands: parseBandMode(flags.bands),
+      })
+    : null;
   return {
     report,
     commits,
@@ -216,10 +233,11 @@ export function runAnalysis(dir, flags) {
     title,
     rev: flags.rev ? String(flags.rev) : headSha(root) ?? 'HEAD',
     ignore,
+    comparison,
   };
 }
 
-function payload({ report, title, root, rev, ignore }, flags) {
+function payload({ report, title, root, rev, ignore, comparison }, flags) {
   return {
     tool: { name: pkg.name, version: pkg.version },
     generatedAt: new Date().toISOString(),
@@ -236,6 +254,7 @@ function payload({ report, title, root, rev, ignore }, flags) {
       ignoreFile: ignore?.source ?? null,
       ignorePatterns: ignore?.patterns ?? [],
     },
+    ...(comparison ? { baseline: comparison } : {}),
     summary: report.summary,
     hotspots: report.files,
   };
@@ -265,6 +284,9 @@ function commandHeat(argv) {
   const { report, title } = ctx;
   const palette = String(flags.palette ?? 'ember');
   const range = describeRange(flags);
+  /** The baseline block, rendered after whichever table the format produces. */
+  const baseline = () =>
+    ctx.comparison ? renderComparison(ctx.comparison, { top: num(flags['baseline-top'], 8) }) : '';
 
   if (format === 'json') {
     const json = `${JSON.stringify(payload(ctx, flags), null, 2)}\n`;
@@ -295,7 +317,8 @@ function commandHeat(argv) {
   if (format === 'tree') {
     process.stdout.write(
       `${renderTable(report, { summaryOnly: true, color: shouldUseColor(), range, title })}` +
-        renderTree(report, { color: shouldUseColor(), depth: num(flags.depth, 2), top: num(flags.top, 20) }),
+        renderTree(report, { color: shouldUseColor(), depth: num(flags.depth, 2), top: num(flags.top, 20) }) +
+        baseline(),
     );
     return 0;
   }
@@ -308,7 +331,7 @@ function commandHeat(argv) {
       color: shouldUseColor(),
       range,
       title,
-    }),
+    }) + baseline(),
   );
   return 0;
 }

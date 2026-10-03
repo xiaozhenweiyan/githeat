@@ -41,6 +41,40 @@ export function headSha(cwd = process.cwd()) {
 }
 
 /**
+ * Best common ancestor of `ref` and HEAD, or null when there is none.
+ *
+ * Comparing against the merge base rather than the branch tip is what makes a
+ * baseline mean something: on a branch that is 200 commits behind `main`, the
+ * tip of `main` contains work this branch has never seen, and every file those
+ * commits touched would look like it had "cooled down" here.
+ */
+export function mergeBase(ref, cwd = process.cwd()) {
+  if (!ref) return null;
+  return git(['merge-base', ref, 'HEAD'], { cwd, allowFail: true })?.trim() || null;
+}
+
+/**
+ * True when `ref` is reachable from HEAD, i.e. this branch contains it.
+ *
+ * Callers use this to keep their wording honest: comparing against an ancestor
+ * can only ever show files getting busier, because the descendant's history
+ * contains strictly more of them.
+ *
+ * `git merge-base --is-ancestor` prints nothing and answers through its exit
+ * code, so this one cannot go through the stdout-based `git()` helper.
+ */
+export function isAncestor(ref, cwd = process.cwd()) {
+  if (!ref) return false;
+  const res = spawnSync('git', ['merge-base', '--is-ancestor', ref, 'HEAD'], {
+    cwd,
+    encoding: 'utf8',
+    windowsHide: true,
+    env: { ...process.env, LC_ALL: 'C', GIT_OPTIONAL_LOCKS: '0' },
+  });
+  return res.status === 0;
+}
+
+/**
  * Parse `git log --name-only` output into commit records.
  * Paths are returned as POSIX-style, repo-relative strings.
  */

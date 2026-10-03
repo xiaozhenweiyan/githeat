@@ -10,7 +10,7 @@
  * Exclusions, reviewed changes and rendering are all reachable from here, so a
  * bot can do anything the CLI does without shelling out.
  */
-export { readHistory, parseLog, normalizeWhen, parseWhen, isRepo, repoRoot, headSha, git } from './git.mjs';
+export { readHistory, parseLog, normalizeWhen, parseWhen, isRepo, repoRoot, headSha, mergeBase, isAncestor, git } from './git.mjs';
 export {
   analyze,
   bandOf,
@@ -44,6 +44,7 @@ export { renderHtml } from './report.mjs';
 export { renderTable, renderTree, shouldUseColor } from './terminal.mjs';
 export { readChangedList, reviewReport, renderReviewMarkdown } from './review.mjs';
 export { explainExclusion, renderExplanation } from './explain.mjs';
+export { compareToBase, renderComparison, SCORE_EPSILON } from './compare.mjs';
 export { colorForScore, paletteNames, legendStops } from './colors.mjs';
 
 export const version = '0.1.0';

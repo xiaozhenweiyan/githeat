@@ -8,6 +8,17 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **`--base <ref>`** — compare the current ranking against a baseline revision and
+  list what moved: hotter, cooler, new, gone. Resolved through `git merge-base` so
+  a branch that is behind does not get credited with work it never did, and scored
+  with identical window/filters/exclusions on both sides so the deltas mean
+  something. Movements under two points are ignored. The output is deliberately
+  careful about direction: `cooler` means the baseline has commits this revision
+  does not, which is not the same as "improved", and against an earlier point on
+  the same line of history the tool says that only accumulation is possible
+  instead of letting `0 cooler` look like a bug. An unknown ref is an error
+  rather than a silent comparison against nothing (which would report every file
+  as brand new).
 - **Trend per file** (`rising` / `cooling` / `steady`) — the second half of the
   analysed window compared with the first, shown as a `trend` column and in
   `explain`. A snapshot cannot distinguish a file that is getting worse from one

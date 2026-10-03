@@ -245,6 +245,32 @@ git diff --name-only origin/main... | node bin/githeat.mjs review
 `review` reads the path list from stdin or `--changed <file>`, and `--format json`
 gives `{ changed, ranked, average, verdict, hotspots[] }` for scripts.
 
+## Against a baseline
+
+"Where is the pain" is one question. "Did this branch make it worse" is the one
+you ask before merging:
+
+```console
+$ githeat heat . --base main
+vs the baseline revision main @ 2989128  (2 ranked files then, 3 now)
+  0 hotter · 1 cooler · 1 new · 0 gone
+
+  v  78.3   -21.7 (was 100)  legacy.js
+  +  72.1  new in this revision   fresh.js
+```
+
+The baseline is resolved through `git merge-base`, so comparing against a branch
+you are 200 commits behind does not credit your work with changes it never made.
+Both sides are scored with the same window, filters and exclusions — only the
+revision differs, which is what makes the deltas mean anything. Movements below
+two points are ignored rather than reported as noise.
+
+**Read `cooler` carefully.** It does not mean a file was refactored: it means the
+baseline revision has commits touching it that this revision does not, which on a
+branch is "not touched yet" and across forks is "someone else's work". Compared
+with an earlier point on the *same* line of history, files can only accumulate,
+and `githeat` says so rather than letting `0 cooler` look like a bug.
+
 ## In CI
 
 ```yaml
