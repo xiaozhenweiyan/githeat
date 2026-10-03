@@ -10,13 +10,14 @@ import { dirname, resolve, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-import { isRepo, repoRoot, readHistory, headSha, mergeBase } from './git.mjs';
+import { isRepo, repoRoot, readHistory, headSha, mergeBase, git } from './git.mjs';
 import { analyze, parseExtensions, DEFAULT_MIN_COMMITS } from './analyze.mjs';
 import { readChangedList, reviewReport, renderReviewMarkdown } from './review.mjs';
 import { IGNORE_FILE, makeIgnoreMatcher, parseIgnoreText, IGNORE_TEMPLATE } from './ignore.mjs';
 import { explainExclusion, renderExplanation } from './explain.mjs';
 import { compareToBase, renderComparison } from './compare.mjs';
 import { readLineAges, renderLineReport, isPartialClone, AGE_BUCKETS } from './lines.mjs';
+import { buildGraph, couplingReport, renderCoupling } from './graph.mjs';
 import { renderSvg } from './svg.mjs';
 import { renderHtml } from './report.mjs';
 import { renderTable, renderTree, shouldUseColor } from './terminal.mjs';
@@ -34,6 +35,7 @@ USAGE
   githeat review [dir] [options]     rank only the files a change touched (for PRs)
   githeat explain <path> [dir]       why a file is (or is not) in the ranking
   githeat lines [path] [dir]         where inside one file the churn sits
+  githeat roots [dir]                which files the hotspots have in common
   githeat init  [dir]                write a starter .githeatignore
   githeat install-hook [dir]         install a non-blocking pre-commit reminder
 
@@ -80,6 +82,11 @@ LINES
   --format text|json         report (default) or machine output
   --rev <range>              blame a revision other than HEAD
 
+ROOTS
+  --top <n>                  hotspots to consider (default 8)
+  --roots-top <n>            shared roots to list (default 8)
+  --format text|json         report (default) or machine output
+
   -h, --help                 this text
   -v, --version              print the version
 `;
@@ -89,7 +96,7 @@ export function parseArgs(argv) {
   const boot = { help: true, version: true, json: true, open: true, quiet: true, color: true, merges: true, force: true, all: true, 'include-noise': true, 'no-color': true, 'no-ignore-file': true, map: true };
   const takesValue = new Set([
     'since', 'until', 'author', 'rev', 'min-commits', 'top', 'depth', 'out', 'format', 'palette', 'tiles',
-    'max-score', 'max-critical', 'ext', 'bands', 'changed', 'ignore', 'base',
+    'max-score', 'max-critical', 'ext', 'bands', 'changed', 'ignore', 'base', 'roots-top',
   ]);
   const known = new Set([...Object.keys(boot), ...takesValue]);
   for (let i = 0; i < argv.length; i += 1) {
@@ -618,6 +625,68 @@ function commandLines(argv) {
   return 0;
 }
 
+/**
+ * `githeat roots` — which files the hotspots have in common.
+ *
+ * A ranking says where the changes are; it cannot say that three of them are
+ * probably caused by one module they all import. That is what this answers.
+ */
+function commandRoots(argv) {
+  const { _: positional, flags } = parseArgs(argv);
+  const ctx = runAnalysis(positional[0], flags);
+  const limit = num(flags.top, 8);
+  const wanted = new Set(parseExtensions(flags.ext) ?? undefined);
+  const sources = readSourcesForGraph(ctx.root, { wanted });
+
+  const graph = buildGraph({
+    sources,
+    readFile: (path) => readTrackedFile(ctx.root, path),
+  });
+  const result = couplingReport({ report: ctx.report, graph, limit });
+
+  if (String(flags.format ?? 'text').toLowerCase() === 'json') {
+    process.stdout.write(
+      `${JSON.stringify(
+        { repository: ctx.title, rev: ctx.rev, range: describeRange(flags), ...result },
+        null,
+        2,
+      )}\n`,
+    );
+    return 0;
+  }
+
+  process.stdout.write(
+    renderCoupling(result, { title: ctx.title, range: describeRange(flags), top: num(flags['roots-top'], 8) }),
+  );
+  return 0;
+}
+
+/**
+ * Tracked file list with their contents.
+ *
+ * Only files the graph can plausibly need are read: the ranked source files plus
+ * their extensions. Everything else is fetched lazily by `readTrackedFile` when
+ * an import actually points at it, which keeps a large repository from turning
+ * into thousands of `git show` calls.
+ */
+export function readSourcesForGraph(root, { wanted } = {}) {
+  const listed = git(['ls-files'], { cwd: root, allowFail: true }) ?? '';
+  const sources = new Map();
+  const extSet = wanted instanceof Set && wanted.size > 0 ? wanted : null;
+  for (const path of listed.split('\n').map((l) => l.trim()).filter(Boolean)) {
+    if (extSet && !extSet.has(path.slice(path.lastIndexOf('.') + 1).toLowerCase())) continue;
+    const text = readTrackedFile(root, path);
+    if (text !== undefined) sources.set(path, text);
+  }
+  return sources;
+}
+
+/** File contents at HEAD, or undefined when the path is not a readable blob. */
+function readTrackedFile(root, path) {
+  const out = git(['show', `HEAD:${path}`], { cwd: root, allowFail: true });
+  return out === null ? undefined : out;
+}
+
 export function main(argv) {
   const [first, ...rest] = argv;
   if (first === '--version' || first === '-v') {
@@ -633,6 +702,7 @@ export function main(argv) {
     if (first === 'review') return commandReview(rest);
     if (first === 'explain') return commandExplain(rest);
     if (first === 'lines') return commandLines(rest);
+    if (first === 'roots') return commandRoots(rest);
     if (first === 'init') return commandInit(rest);
     if (first === 'install-hook') return commandInstallHook(rest);
     if (first === 'help') {

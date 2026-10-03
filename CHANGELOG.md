@@ -8,6 +8,17 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **`githeat roots`** — the dependency graph, built to answer a question a
+  per-file ranking structurally cannot: are several hotspots probably caused by
+  one module they all import? Reports each hotspot's direct importers and its
+  **blast radius** (files that break *through* it, not just those that import it),
+  the **shared roots** ranked by how much hotspot score sits behind them, and any
+  **cycles** among hotspots, which mean two files are one unit to edit.
+  The useful signal is usually a `[calm]` root — a file the ranking ignores while
+  six loud files depend on it. Regex-based extraction for JS/TS/Python/Rust/Ruby/
+  C/Java, conservative by design: aliases, package `exports` maps and dynamic
+  requires are not resolved, unresolved imports are counted and shown on every
+  run, and the output says to treat a missing edge as unknown rather than absent.
 - **`githeat lines <path>`** — where inside one file the churn sits. A ranking
   answers "which file"; for a 1 300-line file with 305 changes that is half an
   answer. Shows the age distribution per line, the largest contiguous regions,

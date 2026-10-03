@@ -55,6 +55,17 @@ export {
   readLineAges,
   renderLineReport,
 } from './lines.mjs';
+export { extractImports, RESOLVE_EXTENSIONS, INDEX_FILES } from './imports.mjs';
+export {
+  buildGraph,
+  couplingReport,
+  renderCoupling,
+  resolveSpecifier,
+  closure,
+  dependentsOf,
+  dependenciesOf,
+  findCycles,
+} from './graph.mjs';
 export { colorForScore, paletteNames, legendStops } from './colors.mjs';
 
 export const version = '0.1.0';

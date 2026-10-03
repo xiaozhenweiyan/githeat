@@ -241,6 +241,45 @@ over the network, one file at a time, and then fail anyway. `githeat` detects
 that configuration and says so immediately instead of stalling, and tells you the
 command that fixes it.
 
+## Why the hotspots are hotspots
+
+A ranking says where the changes are. It cannot say that three separate hotspots
+are probably caused by one module they all import — and that is usually the
+cheaper thing to fix:
+
+```console
+$ githeat roots
+dependency graph: 20 files, 63 internal edges
+
+hotspots and how much breaks through them:
+     score  imports  imported-by  blast-radius  file
+       100       11            2             2  src/cli.mjs
+       100        1           12            15  src/analyze.mjs
+       100        1            3             5  src/terminal.mjs
+      68.3        0            6             8  src/git.mjs
+
+shared roots — files that several hotspots depend on (start here):
+   6 hotspot(s) /  554 score behind  [calm] src/ignore.mjs
+      used by src/cli.mjs, src/index.mjs (via 2 hops), src/analyze.mjs, src/terminal.mjs (via 2 hops), +2 more
+      ^ not a hotspot itself, which is exactly why it is easy to miss
+```
+
+Two readings that a per-file ranking structurally cannot give you:
+
+- **`[calm]` is the interesting mark.** A file the ranking ignores, sitting behind
+  six files that the ranking is shouting about, is a candidate root cause.
+- **`blast-radius` counts files that break *through* the file, not just those that
+  import it.** `src/analyze.mjs` is imported directly by 12 files and reached by 15.
+
+Cycles are reported too, because two hotspots that import each other are one unit:
+every change to either touches the other's boundary, and refactoring one in
+isolation will not cool the pair down.
+
+**How much to trust it.** This is a regex-based static graph with no per-language
+parser, so aliases (`@/foo`), package `exports` maps and dynamic `require(variable)`
+are not resolved. Unresolved imports are counted and shown, never invented, and the
+report says so on every run — treat a missing edge as unknown, not as absent.
+
 ## On every pull request
 
 A repo-wide ranking is a monthly report. The version that earns its keep runs on

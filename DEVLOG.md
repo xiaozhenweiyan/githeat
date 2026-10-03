@@ -694,3 +694,64 @@ newest work:    lines 243-302 (60 lines) — last touched 4 days ago
 
 - **99 个测试全绿**（本轮新增 13 个）
 - 提交见下
+
+---
+
+## 2026-02-15 · 第十二轮：依赖关系图 `githeat roots`（你提的「反推根源」）
+
+你说：如果 A 调用 B，那 B 有问题很可能把 A 也带坏，反过来也可能**根源在 B**。
+这个方向我做出来了，而且它确实是**单文件排名在结构上做不到的事**。
+
+### 输出长什么样（在 githeat 自身上跑）
+
+```
+dependency graph: 20 files, 63 internal edges
+
+hotspots and how much breaks through them:
+     score  imports  imported-by  blast-radius  file
+       100       11            2             2  src/cli.mjs
+       100        1           12            15  src/analyze.mjs
+       100        1            3             5  src/terminal.mjs
+      68.3        0            6             8  src/git.mjs
+
+shared roots — files that several hotspots depend on (start here):
+   6 hotspot(s) /  554 score behind  [calm] src/ignore.mjs
+      ^ not a hotspot itself, which is exactly why it is easy to miss
+```
+
+**两个指标是全新的视角：**
+
+1. **`[calm]` 标记才是重点**——一个排名**根本不在意**的文件（`ignore.mjs` 43 分），
+   背后却挂着 **6 个热点、554 分**。这就是你说的「反推根源」。
+2. **`blast-radius` 数的是"穿透"它的文件数，不只是直接 import 它的**。
+   `analyze.mjs` 被 12 个文件直接引用，但实际有 **15 个文件**会因它而断。
+
+还报告了**环**：两个热点互相 import 时它们其实是一个编辑单元，单独重构任何一个都不会让这对降温。
+
+### 设计上的取舍：宁可少报，不可编造
+
+静态依赖图用正则做**天生不完整**：路径别名（`@/foo`）、package.json 的 `exports` 映射、
+动态 `require(变量)` 都解析不了。所以我做了三件事而不是假装图是完整的：
+
+1. **解析不了就计数上报**，不猜。实测 githeat 自身：63 条边、2 条未解析。
+2. **每次运行都打印免责声明**："treat missing edges as unknown, not absent"。
+3. **删掉了"修复它其他就会平静"这类因果措辞**——这是 import 图，不是因果图。
+   共享根源是**候选原因**，环是**耦合事实**，不是缺陷。
+
+### 过程中修掉的三个真 bug（都是自己写出来的）
+
+1. **正则把字符串常量当 import**：`export const IGNORE_FILE = ".githeatignore";`
+   被匹配成一条 import，于是图上出现一条指向不存在文件的边。修法：字符类排除 `=`。
+2. **图只能走一跳**：`buildGraph` 判断"文件是否存在"用的是当前已加载集合，
+   于是调用方没预加载的邻居全被丢掉，**图深度被静默截断**。
+   修法：加真正存在性探测，并且**在解析之前探测**（先探测再 resolve，顺序反了同样无效）。
+3. **共享根源的语义自相矛盾**：我一边问"多个热点共同依赖谁"，一边把热点本身排除掉。
+   但**最有价值的答案恰恰是**"一个看起来平静的热点，背后挂着 5 个高分热点"。
+   现在保留热点并标 `[hot]`/`[calm]`。
+
+另外测试夹具也踩了一次：`shared.js` 的提交数刚好等于 `min-commits` 阈值，于是它**上榜了**，
+`[calm]` 场景根本没被覆盖。改成只改 1 次才真正测到目标场景。
+
+### 状态
+
+- **116 个测试全绿**（本轮新增 17 个）
