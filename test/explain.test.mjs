@@ -68,12 +68,28 @@ test('the rendered breakdown shows the arithmetic, not just the number', () => {
     range: 'all time',
   });
   assert.match(out, /RANK 1 of \d+/);
-  assert.match(out, /score = 100 x \(0\.68 x churn \+ 0\.32 x changes\) x recency/);
+  // the default mode prints a division, not a weighted sum
+  assert.match(out, /score = 100 x \(this file's changes \/ the busiest file's changes\)/);
   assert.match(out, /churn\s+3/);
   assert.match(out, /changes\s+3/);
-  assert.match(out, /normalisation is relative to this repository/);
   assert.match(out, /bands \(absolute\)/);
   assert.ok(!/\bNaN\b|\bundefined\b/.test(out), 'the breakdown must not leak placeholder values');
+});
+
+test('the composite mode explains itself and warns that it is unproven', () => {
+  const report = analyze(history, { now: NOW, score: 'composite' });
+  const out = renderExplanation({
+    path: 'src/hot.js',
+    report,
+    exclusion: { included: true },
+    history,
+    title: 'demo',
+    range: 'all time',
+  });
+  assert.match(out, /score = 100 x \(0\.68 x churn \+ 0\.32 x changes\) x recency/);
+  assert.match(out, /normalisation is relative to this repository/);
+  assert.match(out, /docs\/evaluation\.md/, 'the arithmetic must carry its own caveat');
+  assert.ok(!/\bNaN\b|\bundefined\b/.test(out));
 });
 
 test('the rendered breakdown explains an excluded file and cites its commits', () => {

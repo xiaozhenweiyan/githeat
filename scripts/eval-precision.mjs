@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process';
 
 import { readWindow, partitionFiles, REPAIR_PATTERN, NON_REPAIR_PATTERN } from '../src/eval.mjs';
 import { readHistory, repoRoot, git } from '../src/git.mjs';
-import { analyze, DEFAULT_MIN_COMMITS } from '../src/analyze.mjs';
+import { analyze, DEFAULT_MIN_COMMITS, DEFAULT_SCORE_MODE, SCORE_MODES } from '../src/analyze.mjs';
 
 const args = process.argv.slice(2);
 const target = args.find((a) => !a.startsWith('--'));
@@ -31,6 +31,11 @@ if (!target) {
 const root = repoRoot(target);
 const pairCount = Number(flag('pairs', '4'));
 const minCommits = Number(flag('min-commits', '2'));
+const scoreMode = String(flag('score', DEFAULT_SCORE_MODE)).toLowerCase();
+if (!SCORE_MODES.includes(scoreMode)) {
+  process.stderr.write(`--score 只能是 ${SCORE_MODES.join(' / ')}\n`);
+  process.exit(2);
+}
 const tags = (spawnSync('git', ['-C', root, 'tag', '--sort=creatordate'], { encoding: 'utf8' }).stdout ?? '')
   .split('\n')
   .map((t) => t.trim())
@@ -62,7 +67,7 @@ if (ranges.length === 0) {
 }
 
 const CUTS = [5, 10, 20];
-process.stdout.write(`\n${root}\n绝对精度：只看前 N 名，几个是真的（后来被修过的）文件\n\n`);
+process.stdout.write(`\n${root}\n绝对精度：只看前 N 名，几个是真的（后来被修过的）文件   [score=${scoreMode}]\n\n`);
 process.stdout.write('区间              上榜数  ' + CUTS.map((n) => `P@${n}`.padStart(7)).join('') + '   ' + CUTS.map((n) => `R@${n}`.padStart(7)).join('') + '   随机基线@10  改动次数基线@10\n');
 process.stdout.write('-'.repeat(112) + '\n');
 
@@ -82,7 +87,7 @@ for (const { from, to } of ranges) {
   const { repair } = partitionFiles(commits, { pattern: REPAIR_PATTERN, exclude: NON_REPAIR_PATTERN });
 
   // 工具在 from 这个时点能看到的东西
-  const report = analyze(readHistory({ cwd: root, rev: from }), { minCommits });
+  const report = analyze(readHistory({ cwd: root, rev: from }), { minCommits, score: scoreMode });
   const ranked = report.files;
   const totalRepair = [...repair].filter((p) => ranked.some((f) => f.path === p)).length;
 

@@ -26,7 +26,7 @@
  * sometimes absent. A project that never says "refactor" produces no ground truth
  * at all, and this script will say so rather than scoring zero.
  */
-import { analyze, DEFAULT_MIN_COMMITS } from './analyze.mjs';
+import { analyze, DEFAULT_MIN_COMMITS, DEFAULT_SCORE_MODE } from './analyze.mjs';
 import { readHistory, git } from './git.mjs';
 
 /**
@@ -143,13 +143,13 @@ const mean = (xs) => (xs.length === 0 ? null : xs.reduce((a, b) => a + b, 0) / x
  * @param {string} opts.to      later revision (whose commits provide the answers)
  * @param {number} [opts.topShare=0.1]  "top N%" cut-off for the hit rate
  */
-export function evaluateRange({ cwd, from, to, topShare = 0.1, minCommits = DEFAULT_MIN_COMMITS, pattern = REPAIR_PATTERN, exclude = NON_REPAIR_PATTERN }) {
+export function evaluateRange({ cwd, from, to, topShare = 0.1, minCommits = DEFAULT_MIN_COMMITS, pattern = REPAIR_PATTERN, exclude = NON_REPAIR_PATTERN, score = DEFAULT_SCORE_MODE }) {
   const commits = readWindow({ cwd, from, to });
   const { repair, ordinary, repairCommits, skipped } = partitionFiles(commits, { pattern, exclude });
 
   // the tool only ever sees history up to `from`
   const history = readHistory({ cwd, rev: from });
-  const report = analyze(history, { minCommits });
+  const report = analyze(history, { minCommits, score });
 
   const rank = (paths) => {
     const percentiles = [];

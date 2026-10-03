@@ -28,6 +28,22 @@ export function isNoisePath(path) {
 export const DEFAULT_MIN_COMMITS = 2;
 
 /**
+ * How the score is computed.
+ *
+ * `commits` is the default because it is the one the evidence supports: the
+ * evaluation (docs/evaluation.md) could not find a single case where the
+ * composite picked a better set of files, and the two orderings were 10/10
+ * identical in the top ten on the repositories tested.
+ *
+ * `composite` — the weighted blend with log-scale normalisation and a recency
+ * multiplier — remains available as `--score composite`. It is not disproven,
+ * only unproven, and keeping it selectable is how it can be tested on other
+ * histories instead of being argued about.
+ */
+export const DEFAULT_SCORE_MODE = 'commits';
+export const SCORE_MODES = ['commits', 'composite'];
+
+/**
  * Extensions worth scoring by default.
  *
  * Without this the ranking is dominated by package.json / readme.md / lockfiles:
@@ -135,6 +151,7 @@ export function trendOf(earlier, recent) {
  * @param {string[]} [opts.extensions]  undefined = DEFAULT_EXTENSIONS, [] = every file
  * @param {string[]} [opts.ignore]      gitignore-style exclusion patterns (.githeatignore)
  * @param {'absolute'|'percentile'|'auto'} [opts.bands='absolute']  how risk bands are cut
+ * @param {'commits'|'composite'} [opts.score='commits']  how the score is computed
  */
 export function analyze(commits, opts = {}) {
   const {
@@ -145,6 +162,7 @@ export function analyze(commits, opts = {}) {
     ignore,
     ignoreMatcher,
     bands = 'absolute',
+    score: scoreMode = DEFAULT_SCORE_MODE,
   } = opts;
   const keep = makeFileFilter({ includeNoise, extensions, ignore, ignoreMatcher });
 
@@ -216,6 +234,7 @@ export function analyze(commits, opts = {}) {
   const bandMode = resolveBandMode(bands, ranked.length);
   const churnScaler = makeScaler(all.map((f) => f.churn));
   const changeScaler = makeScaler(all.map((f) => f.commits));
+  const peakCommits = Math.max(1, ...ranked.map((f) => f.commits));
 
   const files = ranked
     .map((f) => {
@@ -227,7 +246,19 @@ export function analyze(commits, opts = {}) {
       const ageDays = daysBetween(f.last, new Date(now).toISOString());
       const recency = 1 - 0.2 * Math.min(1, ageDays / 365);
 
-      const score = Math.round(100 * base * recency * 10) / 10;
+      /**
+       * `commits` is a straight normalisation of the commit count, and it is the
+       * default because the evaluation could not find anything the composite does
+       * better: on three repositories the two orderings were 10/10 identical in the
+       * top ten, and produced the same number of later-repaired files.
+       *
+       * The composite is kept because it is not disproven, only unproven — it is
+       * available as `--score composite` for anyone who wants to test it on their
+       * own history.
+       */
+      const score = scoreMode === 'commits'
+        ? Math.round(1000 * (f.commits / peakCommits)) / 10
+        : Math.round(100 * base * recency * 10) / 10;
       return {
         path: f.path,
         commits: f.commits,
@@ -243,10 +274,12 @@ export function analyze(commits, opts = {}) {
         // kept so `githeat explain` can show the arithmetic instead of asking
         // the user to trust the number
         components: {
+          mode: scoreMode,
           churnScore: Math.round(churnScore * 1000) / 1000,
           changeScore: Math.round(changeScore * 1000) / 1000,
           recency: Math.round(recency * 1000) / 1000,
           base: Math.round(base * 1000) / 1000,
+          peakCommits,
         },
       };
     })
@@ -269,6 +302,7 @@ export function analyze(commits, opts = {}) {
   return {
     files,
     bands: bandMode,
+    scoreMode,
     bandCutoffs: bandMode === 'percentile' ? percentileCutoffs(files) : { ...ABSOLUTE_BANDS },
     /** Every touched path before filtering, so `explain` can report why one is missing. */
     touched,

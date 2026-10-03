@@ -30,19 +30,36 @@ picking the same number of ranked files at random, and the one-line heuristic
 | slugify (78 commits) | 6 | 2.33 / 10 | **2.33 / 10** | **2.33 / 10** | 54 % | 100 % |
 
 **Identical hit counts on all three**, and the reason is not subtle: **the ranking
-is the commit-count sort.** Measured on the same revision with the same filters,
+*is* the commit-count sort.** Measured on the same revision with the same filters,
 the top 10 by score and the top 10 by commit count are **10/10 identical** on both
 express and chalk.
 
-That is what the formula is built to do. Churn carries 0.68 of the weight and
-`churn` *is* the commit count (one entry per changed path per commit); change count
-carries the other 0.32 and is the commit count again; the log-scale normalisation
-is a monotone transform, which cannot reorder anything. The recency multiplier is
-the only term that could, and on these repositories it does not.
+That is what the composite formula is built to do. Churn carries 0.68 of the weight
+and `churn` *is* the commit count (one entry per changed path per commit); change
+count carries the other 0.32 and is the commit count again; the log-scale
+normalisation is a monotone transform, which cannot reorder anything. The recency
+multiplier is the only term that could, and on these repositories it does not.
 
-So the honest description of the score is **a commit count with extra steps**, and
-the evaluation is what exposed that. The useful readings that survive are the ones
-that are true of a commit count too:
+### The default was changed because of this
+
+`--score commits` is now the default, and `--score composite` keeps the old formula
+for anyone who wants to test it on their own history. Re-running the absolute
+precision harness in both modes confirms the switch costs nothing:
+
+| repository | mode | random | commit-count sort | this tool |
+| --- | --- | ---: | ---: | ---: |
+| express | `commits` | 0.97 / 10 | 3.33 / 10 | **3.33 / 10** |
+| express | `composite` | 0.97 / 10 | 3.33 / 10 | **3.33 / 10** |
+| chalk | `commits` | 2.19 / 10 | 2.67 / 10 | **2.67 / 10** |
+| chalk | `composite` | 2.19 / 10 | 2.67 / 10 | **2.67 / 10** |
+| slugify | `commits` | 2.33 / 10 | 2.33 / 10 | **2.33 / 10** |
+| slugify | `composite` | 2.33 / 10 | 2.33 / 10 | **2.33 / 10** |
+
+Two formulas, six measurements, no difference. Shipping the simpler one is the
+honest response to that, and the composite stays available rather than deleted
+because it is unproven, not disproven — a different history might favour it.
+
+The useful readings that survive are the ones that are true of a commit count too:
 
 - **Far better than random.** 3.33 vs 0.97 per ten files on express is a real
   effect, roughly 3.4×.

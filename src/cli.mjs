@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 import { isRepo, repoRoot, readHistory, headSha, mergeBase, git } from './git.mjs';
-import { analyze, parseExtensions, DEFAULT_MIN_COMMITS } from './analyze.mjs';
+import { analyze, parseExtensions, DEFAULT_MIN_COMMITS, DEFAULT_SCORE_MODE, SCORE_MODES } from './analyze.mjs';
 import { readChangedList, reviewReport, renderReviewMarkdown } from './review.mjs';
 import { IGNORE_FILE, makeIgnoreMatcher, parseIgnoreText, IGNORE_TEMPLATE } from './ignore.mjs';
 import { explainExclusion, renderExplanation } from './explain.mjs';
@@ -51,6 +51,9 @@ ANALYSIS
                              use --ext "" to score every file, config and docs included
   --bands <mode>             absolute | percentile | auto (default auto)
                              auto = absolute for small repos, top-5%/15%/40% for 50+ files
+  --score <mode>             commits | composite (default commits)
+                             commits = normalised change count; the evaluation could not
+                             show the composite picks better files (docs/evaluation.md)
   --ignore <patterns>        comma-separated exclusions, e.g. "src/generated/,*.min.js"
   --no-ignore-file           do not read .githeatignore
   --base <ref>               compare against a revision or branch (uses the merge base)
@@ -96,7 +99,7 @@ export function parseArgs(argv) {
   const boot = { help: true, version: true, json: true, open: true, quiet: true, color: true, merges: true, force: true, all: true, 'include-noise': true, 'no-color': true, 'no-ignore-file': true, map: true };
   const takesValue = new Set([
     'since', 'until', 'author', 'rev', 'min-commits', 'top', 'depth', 'out', 'format', 'palette', 'tiles',
-    'max-score', 'max-critical', 'ext', 'bands', 'changed', 'ignore', 'base', 'roots-top',
+    'max-score', 'max-critical', 'ext', 'bands', 'changed', 'ignore', 'base', 'roots-top', 'score',
   ]);
   const known = new Set([...Object.keys(boot), ...takesValue]);
   for (let i = 0; i < argv.length; i += 1) {
@@ -142,6 +145,14 @@ const num = (v, fallback) => {
   if (!Number.isFinite(n)) throw new Error(`expected a number, got "${v}"`);
   return n;
 };
+
+/** --score accepts commits | composite (default commits; see docs/evaluation.md). */
+export function parseScoreMode(value) {
+  if (value === undefined || value === true) return DEFAULT_SCORE_MODE;
+  const mode = String(value).toLowerCase();
+  if (SCORE_MODES.includes(mode)) return mode;
+  throw new Error(`--score expects ${SCORE_MODES.join(' or ')} — got "${value}"`);
+}
 
 /** --bands accepts absolute | percentile | auto (default auto). */
 export function parseBandMode(value) {
@@ -218,6 +229,7 @@ export function runAnalysis(dir, flags) {
     extensions: parseExtensions(flags.ext),
     ignoreMatcher: ignore.matcher,
     bands: parseBandMode(flags.bands),
+    score: parseScoreMode(flags.score),
   });
   if (commits.length === 0) {
     throw new Error(
@@ -265,6 +277,7 @@ function payload({ report, title, root, rev, ignore, comparison }, flags) {
       includeNoise: Boolean(flags['include-noise']),
       bands: report.bands,
       bandCutoffs: report.bandCutoffs,
+      scoreMode: report.scoreMode,
       ignoreFile: ignore?.source ?? null,
       ignorePatterns: ignore?.patterns ?? [],
     },

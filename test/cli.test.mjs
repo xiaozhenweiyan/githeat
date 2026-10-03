@@ -119,7 +119,9 @@ test('tree format rolls churn up per directory', () => {
 });
 
 test('check exits 0 when thresholds hold and 1 when they break', () => {
-  const ok = runCli(['check', repo.dir, '--max-score', '99', '--max-critical', '50']);
+  // In commits mode the busiest file scores exactly 100 by construction, so a
+  // threshold of 100 is the "never fail" setting and 99 is stricter than it looks.
+  const ok = runCli(['check', repo.dir, '--max-score', '100', '--max-critical', '50']);
   assert.equal(ok.code, 0, ok.stderr);
   assert.ok(ok.stdout.includes('OK'));
 
@@ -130,6 +132,21 @@ test('check exits 0 when thresholds hold and 1 when they break', () => {
   const quiet = runCli(['check', repo.dir, '--quiet']);
   assert.equal(quiet.code, 0);
   assert.equal(quiet.stdout.trim().split('\n').length, 1);
+});
+
+test('the busiest file scores exactly 100, and only ties with it do', () => {
+  const payload = JSON.parse(runCli(['heat', repo.dir, '--json']).stdout);
+  assert.equal(payload.analysis.scoreMode, 'commits');
+  assert.equal(payload.hotspots[0].score, 100, 'the top of a commits-mode ranking is always 100');
+  const tied = payload.hotspots.filter((h) => h.score === 100);
+  assert.ok(
+    tied.every((h) => h.commits === payload.hotspots[0].commits),
+    'only files tied for the highest change count may score 100',
+  );
+
+  const composite = JSON.parse(runCli(['heat', repo.dir, '--json', '--score', 'composite']).stdout);
+  assert.equal(composite.analysis.scoreMode, 'composite');
+  assert.notEqual(composite.hotspots[0].score, undefined);
 });
 
 test('install-hook writes an executable pre-commit hook', () => {

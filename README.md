@@ -90,19 +90,39 @@ githeat install-hook                       # non-blocking pre-commit reminder
 
 ## How the score works
 
-Every ranked file gets a **hotspot score from 0 to 100**:
+Every ranked file gets a **hotspot score from 0 to 100**. The default is
+deliberately the simplest thing that could work:
 
 ```
+score = 100 × (this file's changes ÷ the busiest file's changes)
+```
+
+That is the default because the evaluation could not show anything more elaborate
+picking better files: on three repositories a weighted composite and a plain
+change count returned **the same number of later-repaired files in the top ten**,
+and their top tens were identical. The busiest file therefore always scores
+exactly 100, and only ties with it do.
+
+A weighted composite still exists for anyone who wants to test it on their own
+history:
+
+```
+--score composite
 score = 100 × (0.68 × churn + 0.32 × changes) × recency
 ```
 
-- **churn** — how many times the file was changed across commits. Normalised on a
-  log scale anchored at the repository's own 90th percentile, so one giant
-  generated file cannot flatten everything else to zero.
-- **changes** — how many separate commits touched it. Being reopened 30 times in
-  30 commits is worse than one sweeping rewrite.
-- **recency** — a file nobody has touched in a year is 20% less urgent than one
+- **churn** — how many times the file was changed across commits, normalised on a
+  log scale anchored at the repository's own 90th percentile.
+- **changes** — how many separate commits touched it.
+- **recency** — a file nobody has touched in a year is 20 % less urgent than one
   edited last week.
+
+That is not a better formula, it is an *unproven* one: see
+[`docs/evaluation.md`](docs/evaluation.md) before trusting it, and
+[`githeat explain`](#inside-a-file) prints the arithmetic for whichever mode ran.
+
+The score is a **relative** number, not an absolute risk: 100 means "busiest file
+in this repository", not "this file is bad".
 
 Bands: `critical ≥ 70`, `high ≥ 45`, `medium ≥ 20`, `low` below that.
 
