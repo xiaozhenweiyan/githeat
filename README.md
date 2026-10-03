@@ -400,19 +400,46 @@ For very large monorepos, scope the window: `githeat --since 12.months`.
 
 ## Does it actually work?
 
-An obvious question, and one this project tries to answer with evidence rather
-than assertion: [`docs/evaluation.md`](docs/evaluation.md) checks the ranking
-against the repairs maintainers described in their own commit messages, using
+An obvious question, so this project tries to answer it with evidence rather than
+assertion: [`docs/evaluation.md`](docs/evaluation.md) checks the ranking against
+the repairs maintainers described in their own commit messages, with
 equally-recent files as a control group.
 
-The short version: on express (6 173 commits) the files fixed later were **1.6×
-more likely** to sit in the top 10 % of the ranking than equally-recent files that
-were not, with a 22.9 pp mean separation in percentile rank. On two smaller
-projects the sample was too small to conclude anything, and that is reported as
-"no usable evidence" rather than as a win.
+**The short version is unflattering, and it is worth reading before you install
+anything.**
 
-What the control group establishes is that this is not merely a recency detector —
-which is the main way a metric like this can be useless while looking useful.
+On three real projects, taking the top 10 files the tool recommends and asking how
+many were actually repaired in the next release:
+
+| repository | random pick | sort by change count | githeat |
+| --- | ---: | ---: | ---: |
+| express (6 173 commits) | 0.97 / 10 | **3.33 / 10** | **3.33 / 10** |
+| chalk (380 commits) | 2.19 / 10 | **2.67 / 10** | **2.67 / 10** |
+| slugify (78 commits) | 2.33 / 10 | **2.33 / 10** | **2.33 / 10** |
+
+**The full scoring formula performs exactly as well as sorting files by how many
+commits touched them** — on all three projects, to the same hit count. The reason
+is not subtle: **the ranking *is* the commit-count sort.** Measured on the same
+revision with the same filters, the top 10 by score and the top 10 by commit count
+are **10/10 identical**. Churn carries 0.68 of the weight and churn *is* the commit
+count; change count carries the other 0.32 and is the commit count again; the
+log-scale normalisation is monotone, so it cannot reorder anything.
+
+So the score is best described as **a commit count with extra steps**. Recall is
+low too: the top 10 covers 9 % of the files that later needed repair on express.
+
+The honest claim is not "this finds your problem files". It is:
+
+- **Much better than picking at random** (3.33 vs 0.97 per ten files on express).
+- **No better than `git log --name-only | sort | uniq -c | sort -rn`**, which costs
+  nothing and needs no tool. That is a defect in the scoring, and the evaluation is
+  what exposed it.
+- **The highest precision is at the very top**: 53 % for the top 5 on express, 27 %
+  by the top 20. Use it as a shortlist of five, not as a ranked plan.
+
+Why it is still here: it does not degenerate into a recency detector (the control
+group in the evaluation establishes that), and the parts that are not the ranking —
+`lines`, `roots`, `--base`, the PR comment — answer questions a commit count cannot.
 
 ## How it compares
 
