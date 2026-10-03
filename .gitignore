@@ -6,4 +6,3 @@ Thumbs.db
 /out/
 *.tgz
 # local render of docs/demo.svg, handy for eyeballing the map without a browser
-docs/demo-preview.png
