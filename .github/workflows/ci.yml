@@ -54,3 +54,16 @@ jobs:
           githeat --version
           githeat heat . --top 3
           githeat check --quiet
+
+      - name: The packed package can review a change
+        run: |
+          # the review path is what the GitHub Action runs; prove it works from
+          # the published entry point, not just from a source checkout
+          printf 'src/cli.mjs\nsrc/analyze.mjs\n' > changed.txt
+          githeat review --changed changed.txt --top 3
+          githeat review --changed changed.txt --format json | node -e "
+            let s = ''; process.stdin.on('data', d => s += d).on('end', () => {
+              const r = JSON.parse(s);
+              if (!r.ranked) { console.error('expected at least one ranked changed file'); process.exit(1); }
+              console.log('review ok:', r.ranked, 'of', r.changed, 'changed files are ranked');
+            });"

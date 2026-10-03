@@ -63,15 +63,24 @@ slow, that is a bug report worth opening.
 
 ## Incidental finding: the risk bands are calibrated for small repositories
 
-On `vuejs/core` the default thresholds put **192 of 810 files in `critical`**
-(score ≥ 70). That is not a bug — a 6 500-commit history really does have a lot
-of heavily-edited files — but it means the bands stop discriminating at that
-size. Two ways to use the tool on a large repository:
+On `vuejs/core` the absolute thresholds put **192 of 810 files in `critical`**
+(score ≥ 70). Not a bug — a 6 500-commit history really does contain a lot of
+heavily-edited files — but it means the bands stop discriminating at that size,
+which is why the default is now `--bands auto`: absolute for repositories under
+50 ranked files, rank-based above it.
+
+Measured on the same two clones:
+
+| repository | ranked files | `--bands auto` (default) | `--bands absolute` |
+| --- | ---: | --- | --- |
+| express | 396 | 20 critical (5.1 %), 40 high, 99 medium, 237 low | 66 critical (16.7 %), 167 high, 163 medium, 0 low |
+| vuejs/core | 810 | 41 critical (5.1 %), 81 high, 202 medium, 486 low | 192 critical (23.7 %), 217 high, 401 medium, 0 low |
+
+Note the `low` column: under absolute bands nothing in either repository is "low",
+because the score floor sits at ~24. Rank-based banding is what makes the label
+carry information on a mature codebase.
 
 ```bash
-githeat heat . --since 12.months     # recent pressure only, bands behave again
-githeat heat . --top 20              # ignore bands, look at the ranked list
+githeat heat . --bands absolute     # the old behaviour, comparable across repos
+githeat heat . --bands percentile   # same cut-offs regardless of size
 ```
-
-A `--bands-thresholds` option (percentile-based instead of absolute) is an open
-idea; nobody has needed it badly enough yet to write it.

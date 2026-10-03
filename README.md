@@ -116,6 +116,61 @@ Override with `--ext ""`.
 committer date, which would make every file look freshly touched. Windows are
 applied to author dates in UTC so a report means the same thing on every machine.
 
+**Risk bands adapt to repository size.** Absolute cut-offs (`critical ≥ 70`) work
+on a small project but stop discriminating on a large one: on `vuejs/core`, 192 of
+810 files score ≥ 70. Under the default `--bands auto`, repositories with 50+
+ranked files are banded by rank instead — top 5 % `critical`, next 10 % `high`,
+next 25 % `medium` — which keeps the label meaningful at any size. Pass
+`--bands absolute` or `--bands percentile` to pin it.
+
+## On every pull request
+
+A repo-wide ranking is a monthly report. The version that earns its keep runs on
+every PR and tells the reviewer — and the contributor — when a change lands on a
+file that is already known trouble:
+
+```yaml
+# .github/workflows/review.yml
+name: githeat review
+on: pull_request
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }      # real history is the whole point
+      - uses: xiaozhenweiyan/githeat/action@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          since: 12.months
+```
+
+It posts one comment per pull request — edited in place, never a new comment per
+push — and skips the comment entirely when a change touches no ranked file, so it
+stays quiet on small PRs:
+
+> ### githeat · this PR touches known hotspots
+>
+> 🔴 **packages/runtime-core/src/renderer.ts** has a hotspot score of **99.1/100**
+> (305 changes, 53 authors, last touched 16 days ago).
+>
+> | score | changes | authors | last change | file |
+> | ---: | ---: | ---: | ---: | --- |
+> | 99.1 | 305 | 53 | 16d ago | `packages/runtime-core/src/renderer.ts` |
+> | 99.1 | 308 | 46 | 16d ago | `packages/compiler-sfc/src/compileScript.ts` |
+
+The same thing locally, on the files you are about to commit:
+
+```bash
+git diff --name-only origin/main... | node bin/githeat.mjs review
+```
+
+`review` reads the path list from stdin or `--changed <file>`, and `--format json`
+gives `{ changed, ranked, average, verdict, hotspots[] }` for scripts.
+
 ## In CI
 
 ```yaml

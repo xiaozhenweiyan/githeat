@@ -6,6 +6,21 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- `githeat review` — rank only the files a change touched, from a path list on
+  stdin or `--changed <file>`, as markdown (for a PR comment) or JSON.
+- A GitHub Action (`action/`) that reviews every pull request: posts one comment
+  listing the changed files that are known hotspots, edits it in place instead of
+  commenting on every push, and stays silent when nothing ranked was touched.
+  "305 changes, 53 authors" is context a reviewer otherwise has no way to see.
+  The action runs on this repository's own pull requests.
+- `--bands absolute|percentile|auto` — risk bands can be cut by rank instead of
+  by absolute score. Absolute cut-offs stop discriminating on large histories
+  (`vuejs/core`: 192 of 810 files land in "critical"); under the new default of
+  `auto`, repositories with 50+ ranked files are banded by rank, so `critical`
+  means "top 5 % of this repository".
+
 ## [0.1.0] - 2026-04-01
 
 First release: the whole tool, small enough to read in one sitting.

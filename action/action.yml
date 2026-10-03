@@ -1,0 +1,52 @@
+name: githeat review
+description: Show which files in a pull request are known hotspots, then optionally comment on the PR.
+author: xiaozhenweiyan
+branding:
+  icon: activity
+  color: red
+
+inputs:
+  base:
+    description: Base revision to diff against. Defaults to the previous commit.
+    required: false
+    default: ''
+  head:
+    description: Head revision to diff.
+    required: false
+    default: HEAD
+  changed-files:
+    description: Path to a newline-separated list of changed files. Skips the git diff when set.
+    required: false
+    default: ''
+  since:
+    description: Time window for the history analysis, e.g. 12.months. Empty means all time.
+    required: false
+    default: ''
+  min-commits:
+    description: Files changed fewer times than this are not ranked.
+    required: false
+    default: '2'
+  limit:
+    description: Maximum rows in the generated table.
+    required: false
+    default: '10'
+  comment:
+    description: Set to false to write only the step summary and never comment.
+    required: false
+    default: 'true'
+  pull-request:
+    description: Pull request number. Read from the event payload when empty.
+    required: false
+    default: ''
+  token:
+    description: Token used to post the comment. Pass secrets.GITHUB_TOKEN.
+    required: false
+    default: ''
+  path:
+    description: Path to the repository to analyse.
+    required: false
+    default: '.'
+
+runs:
+  using: node20
+  main: review.mjs

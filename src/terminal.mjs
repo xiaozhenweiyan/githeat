@@ -164,14 +164,21 @@ export function renderTable(report, opts = {}) {
     lines.push(dim(`… ${files.length - top} more files (--top ${files.length} to see all)`, color));
   }
 
-  const { bands } = summary;
+  const counts = summary.bands;
   lines.push('');
   lines.push(
-    `${dim('bands:', color)} ${paint(`critical ${bands.critical}`, 85, color)} ${paint(
-      `high ${bands.high}`,
+    `${dim('bands:', color)} ${paint(`critical ${counts.critical}`, 85, color)} ${paint(
+      `high ${counts.high}`,
       55,
       color,
-    )} ${paint(`medium ${bands.medium}`, 30, color)} ${paint(`low ${bands.low}`, 8, color)}`,
+    )} ${paint(`medium ${counts.medium}`, 30, color)} ${paint(`low ${counts.low}`, 8, color)}${
+      report.bands === 'percentile' && report.bandCutoffs
+        ? dim(
+            `  (rank-based: top 5% ≥ ${report.bandCutoffs.critical}, top 15% ≥ ${report.bandCutoffs.high}, top 40% ≥ ${report.bandCutoffs.medium})`,
+            color,
+          )
+        : ''
+    }`,
   );
   return `${lines.join('\n')}\n`;
 }

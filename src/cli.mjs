@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process';
 
 import { isRepo, repoRoot, readHistory, headSha } from './git.mjs';
 import { analyze, parseExtensions, DEFAULT_MIN_COMMITS } from './analyze.mjs';
+import { readChangedList, reviewReport, renderReviewMarkdown } from './review.mjs';
 import { renderSvg } from './svg.mjs';
 import { renderHtml } from './report.mjs';
 import { renderTable, renderTree, shouldUseColor } from './terminal.mjs';
@@ -26,6 +27,7 @@ githeat ${pkg.version} — find git hotspots, render them as heatmaps. Zero depe
 USAGE
   githeat [heat] [dir] [options]     rank files by hotspot score (default command)
   githeat check  [dir] [options]     print a short risk report, exit 1 if thresholds break
+  githeat review [dir] [options]     rank only the files a change touched (for PRs)
   githeat install-hook [dir]         install a non-blocking pre-commit reminder
 
 ANALYSIS
@@ -38,6 +40,8 @@ ANALYSIS
   --min-commits <n>          ignore files changed fewer than n times (default ${DEFAULT_MIN_COMMITS})
   --ext <list>               score only these extensions, e.g. "js,ts,py" (default: source code)
                              use --ext "" to score every file, config and docs included
+  --bands <mode>             absolute | percentile | auto (default auto)
+                             auto = absolute for small repos, top-5%/15%/40% for 50+ files
   --include-noise            keep lockfiles, generated and vendored files
 
 OUTPUT
@@ -56,6 +60,11 @@ CHECK
   --max-critical <n>         fail when more than n files are critical (>= 70)
   --quiet                    only print the verdict line
 
+REVIEW
+  --changed <file>           newline-separated path list; omit or use - to read stdin
+  --format markdown|json     markdown comment body (default) or machine output
+  --top <n>                  rows in the generated table (default 10)
+
   -h, --help                 this text
   -v, --version              print the version
 `;
@@ -65,7 +74,7 @@ export function parseArgs(argv) {
   const boot = { help: true, version: true, json: true, open: true, quiet: true, color: true, merges: true, force: true, all: true, 'include-noise': true, 'no-color': true };
   const takesValue = new Set([
     'since', 'until', 'author', 'rev', 'min-commits', 'top', 'depth', 'out', 'format', 'palette', 'tiles',
-    'max-score', 'max-critical', 'ext',
+    'max-score', 'max-critical', 'ext', 'bands', 'changed',
   ]);
   const known = new Set([...Object.keys(boot), ...takesValue]);
   for (let i = 0; i < argv.length; i += 1) {
@@ -112,6 +121,14 @@ const num = (v, fallback) => {
   return n;
 };
 
+/** --bands accepts absolute | percentile | auto (default auto). */
+export function parseBandMode(value) {
+  if (value === undefined || value === true) return 'auto';
+  const mode = String(value).toLowerCase();
+  if (mode === 'absolute' || mode === 'percentile' || mode === 'auto') return mode;
+  throw new Error(`--bands expects absolute, percentile or auto — got "${value}"`);
+}
+
 export function describeRange(flags) {
   if (flags.rev && (flags.since || flags.until)) return `${flags.rev} · ${flags.since ?? 'start'}..${flags.until ?? 'now'}`;
   if (flags.rev) return String(flags.rev);
@@ -150,6 +167,7 @@ export function runAnalysis(dir, flags) {
     minCommits: num(flags['min-commits'], DEFAULT_MIN_COMMITS),
     includeNoise: Boolean(flags['include-noise']),
     extensions: parseExtensions(flags.ext),
+    bands: parseBandMode(flags.bands),
   });
   if (commits.length === 0) {
     throw new Error(
@@ -172,6 +190,8 @@ function payload({ report, title, root, rev }, flags) {
       author: flags.author ?? null,
       minCommits: num(flags['min-commits'], DEFAULT_MIN_COMMITS),
       includeNoise: Boolean(flags['include-noise']),
+      bands: report.bands,
+      bandCutoffs: report.bandCutoffs,
     },
     summary: report.summary,
     hotspots: report.files,
@@ -340,6 +360,62 @@ githeat check --quiet --max-score 95 || true
   return 0;
 }
 
+/**
+ * `githeat review` — rank only the files a change touched.
+ *
+ * Designed for CI: reads a path list (file or stdin), prints a markdown comment
+ * body. The GitHub Action in action/ is a thin wrapper around this.
+ */
+function commandReview(argv) {
+  const { _: positional, flags } = parseArgs(argv);
+  const ctx = runAnalysis(positional[0], flags);
+  const source = flags.changed === undefined || flags.changed === true ? null : String(flags.changed);
+
+  let stdinText = '';
+  if (!source || source === '-') {
+    try {
+      stdinText = readFileSync(0, 'utf8'); // fd 0: works when piped, empty when interactive
+    } catch {
+      stdinText = '';
+    }
+  }
+  const changed = readChangedList(source, stdinText);
+
+  const result = reviewReport(ctx.report, changed, { limit: num(flags.top, 10) });
+  const range = describeRange(flags);
+
+  if (String(flags.format ?? 'markdown').toLowerCase() === 'json') {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          repository: ctx.title,
+          rev: ctx.rev,
+          range,
+          changed: changed.length,
+          ranked: result.matched.length,
+          average: result.average,
+          verdict: result.verdict,
+          hotspots: result.matched,
+          notRanked: result.unmatched,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    return 0;
+  }
+
+  process.stdout.write(
+    `${renderReviewMarkdown(result, {
+      repository: ctx.title,
+      rev: ctx.rev,
+      range,
+      limit: num(flags.top, 10),
+    })}\n`,
+  );
+  return 0;
+}
+
 export function main(argv) {
   const [first, ...rest] = argv;
   if (first === '--version' || first === '-v') {
@@ -352,6 +428,7 @@ export function main(argv) {
   }
   try {
     if (first === 'check') return commandCheck(rest);
+    if (first === 'review') return commandReview(rest);
     if (first === 'install-hook') return commandInstallHook(rest);
     if (first === 'help') {
       process.stdout.write(HELP);

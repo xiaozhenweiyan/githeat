@@ -108,9 +108,10 @@ const daysBetween = (aIso, bIso) => {
  * @param {number} [opts.now=Date.now()] reference time for recency weighting
  * @param {boolean} [opts.includeNoise=false]
  * @param {string[]} [opts.extensions]  undefined = DEFAULT_EXTENSIONS, [] = every file
+ * @param {'absolute'|'percentile'|'auto'} [opts.bands='absolute']  how risk bands are cut
  */
 export function analyze(commits, opts = {}) {
-  const { minCommits = DEFAULT_MIN_COMMITS, now = Date.now(), includeNoise = false, extensions } = opts;
+  const { minCommits = DEFAULT_MIN_COMMITS, now = Date.now(), includeNoise = false, extensions, bands = 'absolute' } = opts;
   const keep = makeFileFilter({ includeNoise, extensions });
 
   /** @type {Map<string, {path:string,commits:number,churn:number,authors:Set<string>,first:string,last:string}>} */
@@ -139,11 +140,12 @@ export function analyze(commits, opts = {}) {
   }
 
   const all = [...stats.values()];
+  const ranked = all.filter((f) => f.commits >= minCommits);
+  const bandMode = resolveBandMode(bands, ranked.length);
   const churnScaler = makeScaler(all.map((f) => f.churn));
   const changeScaler = makeScaler(all.map((f) => f.commits));
 
-  const files = all
-    .filter((f) => f.commits >= minCommits)
+  const files = ranked
     .map((f) => {
       const churnScore = churnScaler(f.churn);
       const changeScore = changeScaler(f.commits);
@@ -167,8 +169,13 @@ export function analyze(commits, opts = {}) {
     })
     .sort((a, b) => b.score - a.score || b.churn - a.churn || a.path.localeCompare(b.path));
 
-  const bands = { critical: 0, high: 0, medium: 0, low: 0 };
-  for (const f of files) bands[bandOf(f.score)] += 1;
+  const bandCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+  const thresholds = bandMode === 'percentile' ? PERCENTILE_BANDS : ABSOLUTE_BANDS;
+  files.forEach((f, rank) => {
+    f.band = bandFromThresholds(f.score, thresholds, rank, files.length);
+    f.rank = rank + 1;
+    bandCounts[f.band] += 1;
+  });
 
   const authors = new Map();
   for (const c of commits) authors.set(c.author, (authors.get(c.author) ?? 0) + 1);
@@ -178,6 +185,8 @@ export function analyze(commits, opts = {}) {
 
   return {
     files,
+    bands: bandMode,
+    bandCutoffs: bandMode === 'percentile' ? percentileCutoffs(files) : { ...ABSOLUTE_BANDS },
     summary: {
       commits: commits.length,
       filesTouched: stats.size,
@@ -191,18 +200,65 @@ export function analyze(commits, opts = {}) {
       noiseEntries: noiseCommits,
       firstCommit: dates[0] ?? null,
       lastCommit: dates[dates.length - 1] ?? null,
-      bands,
+      bands: bandCounts,
       // How concentrated is the pain? Share of churn in the top 10 files.
       top10Share: totalChurn === 0 ? 0 : Math.round((files.slice(0, 10).reduce((s, f) => s + f.churn, 0) / totalChurn) * 1000) / 10,
     },
   };
 }
 
-export function bandOf(score) {
-  if (score >= 70) return 'critical';
-  if (score >= 45) return 'high';
-  if (score >= 20) return 'medium';
+/**
+ * Absolute bands. Fine for small repositories, but on a 6 500-commit project
+ * almost the whole distribution sits above 20, so nearly everything lands in
+ * `medium` or worse and the bands stop discriminating. See `percentileBand`.
+ */
+export const ABSOLUTE_BANDS = { critical: 70, high: 45, medium: 20 };
+export const PERCENTILE_BANDS = { critical: 0.05, high: 0.15, medium: 0.4 };
+
+/** Repositories with at least this many ranked files get percentile bands under `auto`. */
+export const AUTO_PERCENTILE_FROM = 50;
+
+export function bandOf(score, mode = 'absolute', rankedCount = Infinity) {
+  if (resolveBandMode(mode, rankedCount) === 'percentile') return bandFromThresholds(score, PERCENTILE_BANDS);
+  return bandFromThresholds(score, ABSOLUTE_BANDS);
+}
+
+export function resolveBandMode(mode = 'absolute', rankedCount = Infinity) {
+  if (mode === 'auto') return rankedCount >= AUTO_PERCENTILE_FROM ? 'percentile' : 'absolute';
+  return mode === 'percentile' ? 'percentile' : 'absolute';
+}
+
+/**
+ * Band a score by its rank rather than its value: the top 5 % of ranked files
+ * are `critical`, the next 10 % `high`, the next 25 % `medium`, the rest `low`.
+ *
+ * `thresholds` must be of the same kind as the comparison: share thresholds
+ * (all < 1, e.g. PERCENTILE_BANDS) are only ever used against rank shares, and
+ * score thresholds (e.g. ABSOLUTE_BANDS) only against scores. Mixing the two
+ * silently bands every file the same way — the bug that made the first version
+ * of this function report 100 % `critical`.
+ */
+export function bandFromThresholds(score, thresholds, rank = null, total = null) {
+  const isShareScale = thresholds.critical < 1;
+  if (rank !== null && total && isShareScale) {
+    const share = rank / total;
+    if (share < thresholds.critical) return 'critical';
+    if (share < thresholds.high) return 'high';
+    if (share < thresholds.medium) return 'medium';
+    return 'low';
+  }
+  if (score >= thresholds.critical) return 'critical';
+  if (score >= thresholds.high) return 'high';
+  if (score >= thresholds.medium) return 'medium';
   return 'low';
+}
+
+/** Percentile thresholds expressed as absolute score cut-offs, for display. */
+export function percentileCutoffs(files) {
+  const n = files.length;
+  if (n === 0) return { ...ABSOLUTE_BANDS };
+  const at = (q) => files[Math.min(n - 1, Math.max(0, Math.ceil(q * n) - 1))].score;
+  return { critical: at(PERCENTILE_BANDS.critical), high: at(PERCENTILE_BANDS.high), medium: at(PERCENTILE_BANDS.medium) };
 }
 
 /** Compact a flat file list into a nested tree for treemap layout / tree output. */
