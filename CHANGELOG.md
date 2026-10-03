@@ -8,6 +8,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- `githeat explain <path>` — why a file is, or is not, in the ranking. Prints the
+  score arithmetic (the two normalised signals, the recency multiplier and the
+  band cut-offs) or names the exact exclusion reason (`noise`, `ignored`,
+  `extension`, `min-commits`, `untouched`) together with the commits that touched
+  the path. `--format json` for scripts. This exists because "why is my file
+  missing" and "why is this file ranked" are the two reports a hotspot tool
+  receives, and both deserve an answer rather than a bug hunt.
 - `.githeatignore` plus `--ignore "a,b"` and `--no-ignore-file` — gitignore-style
   exclusions for generated code the built-in filter cannot recognise. Supports
   directory rules, `*`/`**`, root anchoring and `!` negation, with later patterns

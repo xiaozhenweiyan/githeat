@@ -126,12 +126,27 @@ export function analyze(commits, opts = {}) {
   } = opts;
   const keep = makeFileFilter({ includeNoise, extensions, ignore, ignoreMatcher });
 
+  /**
+   * Every path in the analysed history, filtered or not.
+   *
+   * `stats` drives the ranking, but `touched` is what lets `githeat explain` say
+   * "changed twice, but .md is not in the scored extensions" instead of the
+   * misleading "never seen" — which is the difference between a useful answer
+   * and a wrong one.
+   */
+  const touched = new Map();
   /** @type {Map<string, {path:string,commits:number,churn:number,authors:Set<string>,first:string,last:string}>} */
   const stats = new Map();
   let noiseCommits = 0;
 
   for (const commit of commits) {
     for (const path of commit.files) {
+      const counts = touched.get(path) ?? { commits: 0, first: commit.date, last: commit.date };
+      counts.commits += 1;
+      if (commit.date < counts.first) counts.first = commit.date;
+      if (commit.date > counts.last) counts.last = commit.date;
+      touched.set(path, counts);
+
       if (!keep(path)) {
         noiseCommits += 1;
         continue;
@@ -177,6 +192,14 @@ export function analyze(commits, opts = {}) {
         last: f.last,
         ageDays: Math.round(ageDays),
         score,
+        // kept so `githeat explain` can show the arithmetic instead of asking
+        // the user to trust the number
+        components: {
+          churnScore: Math.round(churnScore * 1000) / 1000,
+          changeScore: Math.round(changeScore * 1000) / 1000,
+          recency: Math.round(recency * 1000) / 1000,
+          base: Math.round(base * 1000) / 1000,
+        },
       };
     })
     .sort((a, b) => b.score - a.score || b.churn - a.churn || a.path.localeCompare(b.path));
@@ -199,6 +222,8 @@ export function analyze(commits, opts = {}) {
     files,
     bands: bandMode,
     bandCutoffs: bandMode === 'percentile' ? percentileCutoffs(files) : { ...ABSOLUTE_BANDS },
+    /** Every touched path before filtering, so `explain` can report why one is missing. */
+    touched,
     summary: {
       commits: commits.length,
       filesTouched: stats.size,

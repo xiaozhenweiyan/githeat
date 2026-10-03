@@ -41,6 +41,7 @@ export { renderSvg } from './svg.mjs';
 export { renderHtml } from './report.mjs';
 export { renderTable, renderTree, shouldUseColor } from './terminal.mjs';
 export { readChangedList, reviewReport, renderReviewMarkdown } from './review.mjs';
+export { explainExclusion, renderExplanation } from './explain.mjs';
 export { colorForScore, paletteNames, legendStops } from './colors.mjs';
 
 export const version = '0.1.0';

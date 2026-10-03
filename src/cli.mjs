@@ -14,6 +14,7 @@ import { isRepo, repoRoot, readHistory, headSha } from './git.mjs';
 import { analyze, parseExtensions, DEFAULT_MIN_COMMITS } from './analyze.mjs';
 import { readChangedList, reviewReport, renderReviewMarkdown } from './review.mjs';
 import { IGNORE_FILE, makeIgnoreMatcher, parseIgnoreText, IGNORE_TEMPLATE } from './ignore.mjs';
+import { explainExclusion, renderExplanation } from './explain.mjs';
 import { renderSvg } from './svg.mjs';
 import { renderHtml } from './report.mjs';
 import { renderTable, renderTree, shouldUseColor } from './terminal.mjs';
@@ -29,6 +30,7 @@ USAGE
   githeat [heat] [dir] [options]     rank files by hotspot score (default command)
   githeat check  [dir] [options]     print a short risk report, exit 1 if thresholds break
   githeat review [dir] [options]     rank only the files a change touched (for PRs)
+  githeat explain <path> [dir]       why a file is (or is not) in the ranking
   githeat init  [dir]                write a starter .githeatignore
   githeat install-hook [dir]         install a non-blocking pre-commit reminder
 
@@ -209,6 +211,7 @@ export function runAnalysis(dir, flags) {
   const title = root.split(/[\\/]/).filter(Boolean).pop() ?? root;
   return {
     report,
+    commits,
     root,
     title,
     rev: flags.rev ? String(flags.rev) : headSha(root) ?? 'HEAD',
@@ -457,6 +460,49 @@ function commandReview(argv) {
 }
 
 /**
+ * `githeat explain <path>` — why this file is (or is not) in the ranking.
+ *
+ * Its real job is the second case: making "it should not have ranked my file"
+ * and "why is my file missing" reports cheap for the user and unambiguous to
+ * answer.
+ */
+function commandExplain(argv) {
+  const { _: positional, flags } = parseArgs(argv);
+  if (positional.length === 0) {
+    throw new Error('explain needs a file path, e.g. githeat explain src/index.js');
+  }
+  const target = positional[0].replace(/\\/g, '/').replace(/^\.\//, '');
+  const ctx = runAnalysis(positional[1], flags);
+  const exclusion = explainExclusion(target, {
+    ignoreMatcher: ctx.ignore.matcher,
+    extensions: parseExtensions(flags.ext),
+    minCommits: num(flags['min-commits'], DEFAULT_MIN_COMMITS),
+    stats: ctx.report.touched,
+    includeNoise: Boolean(flags['include-noise']),
+  });
+
+  if (String(flags.format ?? 'text').toLowerCase() === 'json') {
+    const file = ctx.report.files.find((f) => f.path === target) ?? null;
+    process.stdout.write(
+      `${JSON.stringify({ path: target, repository: ctx.title, rev: ctx.rev, range: describeRange(flags), exclusion, file }, null, 2)}\n`,
+    );
+    return 0;
+  }
+
+  process.stdout.write(
+    renderExplanation({
+      path: target,
+      report: ctx.report,
+      exclusion,
+      history: ctx.commits,
+      title: ctx.title,
+      range: describeRange(flags),
+    }),
+  );
+  return 0;
+}
+
+/**
  * `githeat init` — write a starter .githeatignore.
  *
  * Deliberately all comments: a template with active rules would silently change
@@ -502,6 +548,7 @@ export function main(argv) {
   try {
     if (first === 'check') return commandCheck(rest);
     if (first === 'review') return commandReview(rest);
+    if (first === 'explain') return commandExplain(rest);
     if (first === 'init') return commandInit(rest);
     if (first === 'install-hook') return commandInstallHook(rest);
     if (first === 'help') {

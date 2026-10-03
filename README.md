@@ -139,6 +139,37 @@ githeat heat . --no-ignore-file      # ignore the ignore file
 `--ignore` wins over `.githeatignore`, which wins over the built-in noise
 patterns, so you can always force a file back into the ranking.
 
+**"Why is this file here — or not here?"** Ask it directly:
+
+```console
+$ githeat explain src/core.js
+RANK 2 of 8   score 100/100   band critical
+
+score = 100 x (0.68 x churn + 0.32 x changes) x recency
+      = 100 x (0.68 x 1.000 + 0.32 x 1.000) x 1.000
+
+  churn     4   changes in total (the weighting is not line-based)
+  changes   4   separate commits that touched it
+  authors   1
+  recency   1.000   last change 2026-10-03 (0 days ago)
+
+  normalisation is relative to this repository, not absolute
+```
+
+```console
+$ githeat explain README.md
+NOT RANKED — extension
+  .md is not in the scored extension list — pass --ext "" to score every file
+
+  appears in 54 analysed commits:
+    2026-09-17  a1b2c3d  someone
+```
+
+Every exclusion reason is named — `noise`, `ignored`, `extension`, `min-commits`,
+`untouched` — because "my file is missing" and "my file should not be ranked" are
+the two reports this tool gets, and both are answers, not bugs. `--format json`
+gives the same thing to a script.
+
 **Author dates, not committer dates.** Rebases and squash merges rewrite the
 committer date, which would make every file look freshly touched. Windows are
 applied to author dates in UTC so a report means the same thing on every machine.
